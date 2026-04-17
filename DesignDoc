@@ -1,0 +1,28 @@
+1. Concurrency safety
+Uses ETag + IfMatch
+Prevents overwriting changes
+
+
+2. Retry mechanism
+Handles race conditions automatically
+Exponential backoff avoids hammering S3
+
+
+3. Structured logging (CloudWatch ready)
+
+Example log:
+
+{
+  "message": "Doctor updated",
+  "doctorId": "123"
+}
+
+
+ 4. Clean API errors
+Status	Meaning
+200	success
+201	created
+400	validation error
+404	not found
+409	conflict (implicit via retry)
+500	system failure

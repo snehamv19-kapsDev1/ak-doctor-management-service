@@ -1,0 +1,62 @@
+[
+  {
+    "id": "1",
+    "name": "John Doe",
+    "specialization": "Cardiology",
+    "experience": 10
+  },
+  {
+    "id": "2",
+    "name": "Jane Smith",
+    "specialization": "Neurology",
+    "experience": 8
+  },
+  {
+    "id": "3",
+    "name": "Amit Patel",
+    "specialization": "Orthopedics",
+    "experience": 12
+  },
+  {
+    "id": "5",
+    "name": "Michael Lee",
+    "specialization": "Dermatology",
+    "experience": 9
+  },
+  {
+    "id": "6",
+    "name": "Sneha",
+    "specialization": "Cardiology",
+    "experience": 10
+  },
+  {
+    "id": "7",
+    "name": "Doc 2 ",
+    "specialization": "Dermatology",
+    "experience": 9
+  },
+  {
+    "id": "8",
+    "name": "ddddd",
+    "specialization": "Cardiology",
+    "experience": 10
+  },
+  {
+    "id": "9",
+    "name": "ddddd 2 ",
+    "specialization": "Dermatology",
+    "experience": 9
+  },
+  {
+    "id": "12",
+    "name": "ddddd",
+    "specialization": "Cardiology",
+    "experience": 10
+  },
+  {
+    "id": "11",
+    "name": "ddddd 2 ",
+    "specialization": "Dermatology",
+    "experience": 9
+  }
+]
