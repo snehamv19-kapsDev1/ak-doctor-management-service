@@ -82,4 +82,5 @@ jobs:
           aws cloudformation deploy \
             --template-file cft-ak-doctor-service.yaml \
             --stack-name  doctor-crud-stack \
-            --capabilities CAPABILITY_NAMED_IAM
+            --capabilities CAPABILITY_NAMED_IAM \
+            --region us-east-2

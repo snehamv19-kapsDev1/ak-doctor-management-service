@@ -1,0 +1,53 @@
+
+zip -r createDoctor.zip  lambdas/createDoctor
+
+aws s3 cp createDoctor.zip s3://s3-jsvm-dev-env/dev-doctor-service/
+aws s3 cp lambdas/deleteDoctor/deleteDoctor.zip s3://s3-jsvm-dev-env/dev-doctor-service/
+aws s3 cp lambdas/getDoctor/getDoctor.zip s3://s3-jsvm-dev-env/dev-doctor-service/
+aws s3 cp lambdas/updateDoctor/updateDoctor.zip s3://s3-jsvm-dev-env/dev-doctor-service/
+
+aws s3 cp cft-ak-doctor-service.yaml s3://s3-jsvm-dev-env/dev-cloudformation-templates/
+
+aws s3 cp getAllDoctor.zip s3://s3-jsvm-dev-env/dev-doctor-service/
+
+ aws cloudformation create-stack \
+  --region us-east-2 \
+  --stack-name doctor-crud-stack \
+  --template-url https://s3-jsvm-dev-env.s3.us-east-2.amazonaws.com/dev-cloudformation-templates/cft-ak-doctor-service.yaml \
+  --capabilities CAPABILITY_NAMED_IAM
+
+
+aws cloudformation describe-stack-events \
+  --stack-name doctor-crud-stack \
+  --region us-east-2
+
+aws cloudformation delete-stack \
+  --stack-name doctor-crud-stack \
+  --region us-east-2
+
+aws lambda update-function-code \
+  --function-name CreateDoctorFunction \
+  --s3-bucket s3-jsvm-dev-env \
+  --s3-key dev-doctor-service/createDoctor.zip \
+  --region us-east-2
+
+
+ aws cloudformation update-stack \
+  --region us-east-2 \
+  --stack-name doctor-crud-stack \
+  --template-url https://s3-jsvm-dev-env.s3.us-east-2.amazonaws.com/dev-cloudformation-templates/cft-ak-doctor-service.yaml \
+  --capabilities CAPABILITY_NAMED_IAM
+
+aws lambda update-function-code \
+  --function-name DeleteDoctorFunction \
+  --s3-bucket s3-jsvm-dev-env \
+  --s3-key dev-doctor-service/deleteDoctor.zip \
+  --region us-east-2
+
+
+aws lambda update-function-code \
+  --function-name GetDoctorFunction \
+  --s3-bucket s3-jsvm-dev-env \
+  --s3-key dev-doctor-service/getDoctor.zip \
+  --region us-east-2
+
