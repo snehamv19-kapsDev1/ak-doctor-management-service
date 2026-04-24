@@ -1,8 +1,7 @@
 import json
 import os
 
-FILE = "doctors.json"
-
+FILE = "/tmp/doctors.json"
 
 def read_all_with_etag():
     try:
@@ -14,11 +13,9 @@ def read_all_with_etag():
     except:
         return [], None
 
-
 def write_all(rows, etag=None):
     with open(FILE, "w") as f:
         json.dump(rows, f, indent=2)
-
 
 def get_by_id(doc_id):
     rows, _ = read_all_with_etag()

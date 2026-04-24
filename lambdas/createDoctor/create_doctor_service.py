@@ -1,4 +1,4 @@
-from common.s3_repo import read_all_with_etag, write_all
+from layer.python.common.s3_repo import read_all_with_etag, write_all
 
 
 def create_doctors(data):
