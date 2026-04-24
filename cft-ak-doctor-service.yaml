@@ -60,7 +60,7 @@ Resources:
         Variables:
           BUCKET_NAME: !Ref BucketName
       Code:
-        S3Bucket: s3-jsvm-dev-env
+        S3Bucket: s3-jsvm-services
         S3Key: dev-doctor-service/createDoctor.zip
       Layers:
         - !Ref CommonLayer
@@ -77,7 +77,7 @@ Resources:
         Variables:
           BUCKET_NAME: !Ref BucketName
       Code:
-        S3Bucket: s3-jsvm-dev-env
+        S3Bucket: s3-jsvm-services
         S3Key: dev-doctor-service/getDoctor.zip
       Layers:
         - !Ref CommonLayer
@@ -94,7 +94,7 @@ Resources:
         Variables:
           BUCKET_NAME: !Ref BucketName
       Code:
-        S3Bucket: s3-jsvm-dev-env
+        S3Bucket: s3-jsvm-services
         S3Key: dev-doctor-service/getAllDoctors.zip
       Layers:
         - !Ref CommonLayer
@@ -111,7 +111,7 @@ Resources:
         Variables:
           BUCKET_NAME: !Ref BucketName
       Code:
-        S3Bucket: s3-jsvm-dev-env
+        S3Bucket: s3-jsvm-services
         S3Key: dev-doctor-service/updateDoctor.zip
       Layers:
         - !Ref CommonLayer
@@ -128,7 +128,7 @@ Resources:
         Variables:
           BUCKET_NAME: !Ref BucketName
       Code:
-        S3Bucket: s3-jsvm-dev-env
+        S3Bucket: s3-jsvm-services
         S3Key: dev-doctor-service/deleteDoctor.zip
       Layers:
         - !Ref CommonLayer
@@ -277,7 +277,7 @@ Resources:
       LayerName: common-layer
       Description: Shared utilities for Lambdas
       Content:
-        S3Bucket: s3-jsvm-dev-env
+        S3Bucket: s3-jsvm-services
         S3Key: dev-doctor-service/common-layer.zip
       CompatibleRuntimes:
         - python3.11
