@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from lambdas.createDoctor.create_doctor_service import create_doctors
-from common.s3_repo import read_all_with_etag
+from db_utils.s3_repo import read_all_with_etag
 
 app = Flask(__name__)
 

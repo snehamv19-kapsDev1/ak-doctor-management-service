@@ -1,5 +1,5 @@
 import json
-from layer.python.common.utils import response
+from common.utils import response
 from create_doctor_service import create_doctors
 
 
