@@ -4,7 +4,7 @@ Description: Doctor CRUD using Lambda + API Gateway + S3 JSON (no SAM)
 Parameters:
   BucketName:
     Type: String
-    Default: doctor-db-bucket
+    Default: s3-jsvm-dev-doctor-service-db
 
 Resources:
 
@@ -48,10 +48,10 @@ Resources:
                   - !Sub arn:aws:s3:::${BucketName}/*
 
   ### ---------------- LAMBDAS ----------------
-
   CreateDoctorFunction:
     Type: AWS::Lambda::Function
     Properties:
+      FunctionName: CreateDoctorFunction
       Runtime: python3.11
       Handler: handler.handler
       Role: !GetAtt LambdaExecutionRole.Arn
@@ -62,10 +62,13 @@ Resources:
       Code:
         S3Bucket: s3-jsvm-dev-env
         S3Key: dev-doctor-service/createDoctor.zip
+      Layers:
+        - !Ref CommonLayer
 
   GetDoctorFunction:
     Type: AWS::Lambda::Function
     Properties:
+      FunctionName: GetDoctorFunction
       Runtime: python3.11
       Handler: handler.handler
       Role: !GetAtt LambdaExecutionRole.Arn
@@ -74,12 +77,32 @@ Resources:
         Variables:
           BUCKET_NAME: !Ref BucketName
       Code:
-        S3Bucket: YOUR_DEPLOYMENT_BUCKET
+        S3Bucket: s3-jsvm-dev-env
         S3Key: dev-doctor-service/getDoctor.zip
+      Layers:
+        - !Ref CommonLayer
+
+  GetAllDoctorsFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: GetAllDoctorsFunction
+      Runtime: python3.11
+      Handler: handler.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 10
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref BucketName
+      Code:
+        S3Bucket: s3-jsvm-dev-env
+        S3Key: dev-doctor-service/getAllDoctors.zip
+      Layers:
+        - !Ref CommonLayer
 
   UpdateDoctorFunction:
     Type: AWS::Lambda::Function
     Properties:
+      FunctionName: UpdateDoctorFunction
       Runtime: python3.11
       Handler: handler.handler
       Role: !GetAtt LambdaExecutionRole.Arn
@@ -88,12 +111,15 @@ Resources:
         Variables:
           BUCKET_NAME: !Ref BucketName
       Code:
-        S3Bucket: YOUR_DEPLOYMENT_BUCKET
+        S3Bucket: s3-jsvm-dev-env
         S3Key: dev-doctor-service/updateDoctor.zip
+      Layers:
+        - !Ref CommonLayer
 
   DeleteDoctorFunction:
     Type: AWS::Lambda::Function
     Properties:
+      FunctionName: DeleteDoctorFunction
       Runtime: python3.11
       Handler: handler.handler
       Role: !GetAtt LambdaExecutionRole.Arn
@@ -102,9 +128,10 @@ Resources:
         Variables:
           BUCKET_NAME: !Ref BucketName
       Code:
-        S3Bucket: YOUR_DEPLOYMENT_BUCKET
+        S3Bucket: s3-jsvm-dev-env
         S3Key: dev-doctor-service/deleteDoctor.zip
-
+      Layers:
+        - !Ref CommonLayer
   ### ---------------- API ----------------
 
   DoctorApi:
@@ -152,6 +179,18 @@ Resources:
         IntegrationHttpMethod: POST
         Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetDoctorFunction.Arn}/invocations
 
+  GetAllDoctorsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref DoctorApi
+      ResourceId: !Ref DoctorIdResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetAllDoctorsFunction.Arn}/invocations
+
   UpdateDoctorMethod:
     Type: AWS::ApiGateway::Method
     Properties:
@@ -194,6 +233,14 @@ Resources:
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${DoctorApi}/*
 
+  LambdaInvokePermissionGetAll:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref GetAllDoctorsFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${DoctorApi}/*
+
   LambdaInvokePermissionUpdate:
     Type: AWS::Lambda::Permission
     Properties:
@@ -217,12 +264,23 @@ Resources:
     DependsOn:
       - CreateDoctorMethod
       - GetDoctorMethod
+      - GetAllDoctorsMethod
       - UpdateDoctorMethod
       - DeleteDoctorMethod
     Properties:
       RestApiId: !Ref DoctorApi
       StageName: prod
 
+  CommonLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      LayerName: common-layer
+      Description: Shared utilities for Lambdas
+      Content:
+        S3Bucket: s3-jsvm-dev-env
+        S3Key: dev-doctor-service/common-layer.zip
+      CompatibleRuntimes:
+        - python3.11
 Outputs:
   ApiUrl:
     Value: !Sub "https://${DoctorApi}.execute-api.${AWS::Region}.amazonaws.com/prod/"
