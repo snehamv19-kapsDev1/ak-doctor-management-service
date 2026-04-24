@@ -31,9 +31,8 @@ jobs:
       # 4. Create output folder
       - name: Prepare build folders
         run: |
-          rm -rf output build layer
+          rm -rf output build
           mkdir -p output
-          mkdir -p layer/python
 
       # 5. Build Lambda Layer (common code)
       - name: Build Lambda Layer
@@ -53,8 +52,7 @@ jobs:
 
             mkdir -p "$BUILD_DIR"
 
-            cp -r "lambdas/$FUNCTION/"* "$BUILD_DIR/"
-
+            cp -r "lambdas/$FUNCTION/." "$BUILD_DIR/"
             if [ -f "lambdas/$FUNCTION/requirements.txt" ]; then
               pip install -r "lambdas/$FUNCTION/requirements.txt" -t "$BUILD_DIR/"
             fi
@@ -70,21 +68,21 @@ jobs:
         run: |
           for file in output/*.zip; do
             echo "Uploading $file"
-            aws s3 cp "$file" s3://s3-jsvm-services/
+            aws s3 cp "$file" s3://s3-jsvm-services/dev-doctor-service/$(basename "$file")
           done
 
-      # 8. Delete stack if stuck
-#      - name: Delete failed stack (if exists)
-#        run: |
-#          aws cloudformation delete-stack \
-#            --stack-name stack-doctor-service \
-#            --region us-west-2 || true
-#
-#          aws cloudformation wait stack-delete-complete \
-#            --stack-name stack-doctor-service \
-#            --region us-west-2 || true
+      # 8. Deploy CloudFormation stack
+      - name: Delete failed stack (if exists)
+        run: |
+          aws cloudformation delete-stack \
+            --stack-name stack-doctor-service \
+            --region us-west-2 || true
+      
+          aws cloudformation wait stack-delete-complete \
+            --stack-name stack-doctor-service \
+            --region us-west-2 || true
+          
 
-      # 9. Deploy CloudFormation stack
       - name: Deploy CloudFormation
         run: |
           aws cloudformation deploy \

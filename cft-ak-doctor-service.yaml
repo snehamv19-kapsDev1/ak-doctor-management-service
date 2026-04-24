@@ -183,7 +183,7 @@ Resources:
     Type: AWS::ApiGateway::Method
     Properties:
       RestApiId: !Ref DoctorApi
-      ResourceId: !Ref DoctorIdResource
+      ResourceId: !Ref DoctorResource
       HttpMethod: GET
       AuthorizationType: NONE
       Integration:
