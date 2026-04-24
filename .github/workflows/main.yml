@@ -74,21 +74,21 @@ jobs:
           done
 
       # 8. Delete stack if stuck
-      - name: Delete failed stack (if exists)
-        run: |
-          aws cloudformation delete-stack \
-            --stack-name doctor-crud-stack \
-            --region us-west-2 || true
-      
-          aws cloudformation wait stack-delete-complete \
-            --stack-name doctor-crud-stack \
-            --region us-west-2 || true
+#      - name: Delete failed stack (if exists)
+#        run: |
+#          aws cloudformation delete-stack \
+#            --stack-name stack-doctor-service \
+#            --region us-west-2 || true
+#
+#          aws cloudformation wait stack-delete-complete \
+#            --stack-name stack-doctor-service \
+#            --region us-west-2 || true
 
       # 9. Deploy CloudFormation stack
       - name: Deploy CloudFormation
         run: |
           aws cloudformation deploy \
             --template-file cft-ak-doctor-service.yaml \
-            --stack-name doctor-crud-stack \
+            --stack-name stack-doctor-service \
             --capabilities CAPABILITY_NAMED_IAM \
             --region us-west-2
