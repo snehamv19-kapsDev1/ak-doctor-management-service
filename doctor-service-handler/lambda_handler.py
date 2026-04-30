@@ -2,8 +2,13 @@ import json
 from service_logic import create_doctor, get_all_doctors
 
 def lambda_handler(event, context):
-    return response(200, "LAMBDA EXECUTED SUCCESSFULLY " + event)
-
+    return {
+        "statusCode": 200,
+        "body": json.dumps({
+            "message": "LAMBDA EXECUTED SUCCESSFULLY",
+            "event": event
+        })
+    }
     # try:
     #     http_method = event.get("httpMethod")
     #     path = event.get("path")
