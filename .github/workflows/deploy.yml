@@ -16,7 +16,8 @@ jobs:
       # ----------------------
       # CHECKOUT
       # ----------------------
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       # ----------------------
       # SET ENVIRONMENT
@@ -37,7 +38,7 @@ jobs:
       # ----------------------
       # AWS AUTH
       # ----------------------
-      - name: Configure AWS
+      - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -51,64 +52,67 @@ jobs:
         run: |
           mkdir -p build
           cd doctor-service-handler
-          zip -r ../build/${SERVICE_NAME}.zip . -x "*.git*" "__pycache__/*"
+          zip -r ../build/${SERVICE_NAME}.zip . -x "*.git*" "__pycache__/*" "*.pyc"
           cd ..
+
       # ----------------------
-      # GET DATA BUCKET
+      # GET DATABASE BUCKET (SSM)
       # ----------------------
-      - name: Get Data Bucket
+      - name: Get Database Bucket
         run: |
-          DATA_BUCKET=$(aws ssm get-parameter \
+          DATABASE_BUCKET=$(aws ssm get-parameter \
             --name "/${ENV}/jsvm/database-bucket-name" \
             --query "Parameter.Value" \
             --output text)
-      
-          if [ -z "$DATA_BUCKET" ] || [ "$DATA_BUCKET" == "None" ]; then
-              echo "❌ data bucket not found in SSM"
+
+          if [ -z "$DATABASE_BUCKET" ] || [ "$DATABASE_BUCKET" == "None" ]; then
+            echo "❌ Database bucket not found in SSM"
             exit 1
           fi
-      
-          echo "DATA_BUCKET=$DATA_BUCKET" >> $GITHUB_ENV
 
+          echo "DATABASE_BUCKET=$DATABASE_BUCKET" >> $GITHUB_ENV
+
+      # ----------------------
       # INITIALIZE doctors.json
       # ----------------------
       - name: Initialize doctors.json
         run: |
           DATABASE_KEY="${ENV}"
+          echo "DATABASE_KEY=${DATABASE_KEY}" >> $GITHUB_ENV
 
           if ! aws s3api head-object \
-            --bucket $DATA_BUCKET/$DATABASE_KEY/doctors.json \
-            --key doctors.json 2>/dev/null; then
+            --bucket $DATABASE_BUCKET \
+            --key "$DATABASE_KEY/doctors.json" 2>/dev/null; then
 
             echo "Creating doctors.json..."
             echo "[]" > doctors.json
 
             aws s3 cp doctors.json \
-              s3://$DATA_BUCKET/$DATABASE_KEY/doctors.json \
+              s3://$DATABASE_BUCKET/$DATABASE_KEY/doctors.json \
               --content-type application/json
           else
             echo "doctors.json already exists"
           fi
 
       # ----------------------
-      # LOAD CODE BUCKET FROM SSM
+      # GET CODE BUCKET (SSM)
       # ----------------------
-      - name: Load Code Bucket from SSM
+      - name: Get Code Bucket
         run: |
-          BUCKET=$(aws ssm get-parameter \
+          CODE_BUCKET=$(aws ssm get-parameter \
             --name "/${ENV}/jsvm/code-bucket-name" \
             --query "Parameter.Value" \
             --output text)
-      
-          if [ -z "$BUCKET" ] || [ "$BUCKET" == "None" ]; then
+
+          if [ -z "$CODE_BUCKET" ] || [ "$CODE_BUCKET" == "None" ]; then
             echo "❌ Code bucket not found in SSM"
             exit 1
           fi
-      
-          echo "BUCKET=$BUCKET" >> $GITHUB_ENV
+
+          echo "CODE_BUCKET=$CODE_BUCKET" >> $GITHUB_ENV
 
       # ----------------------
-      # UPLOAD ZIP (versioned)
+      # UPLOAD LAMBDA ZIP
       # ----------------------
       - name: Upload Lambda Zip
         run: |
@@ -116,12 +120,25 @@ jobs:
 
           aws s3 cp \
             build/${SERVICE_NAME}.zip \
-            s3://$BUCKET/$CODE_KEY
+            s3://$CODE_BUCKET/$CODE_KEY
 
           echo "CODE_KEY=$CODE_KEY" >> $GITHUB_ENV
 
-
-
+      # ----------------------
+      # PRINT PARAMETERS (DEBUG)
+      # ----------------------
+      - name: Print Deployment Parameters
+        run: |
+          echo "=============================="
+          echo "🚀 CloudFormation Parameters"
+          echo "=============================="
+          echo "ServiceName=${SERVICE_NAME}"
+          echo "Environment=${ENV}"
+          echo "CodeBucket=${CODE_BUCKET}"
+          echo "CodeKey=${CODE_KEY}"
+          echo "DatabaseBucket=${DATABASE_BUCKET}"
+          echo "DatabaseKey=${DATABASE_KEY}"
+          echo "=============================="
 
       # ----------------------
       # DEPLOY CLOUDFORMATION
@@ -129,47 +146,34 @@ jobs:
       - name: Deploy Stack
         run: |
           STACK_NAME="jsvm-${ENV}-${SERVICE_NAME}"
-          
-          
-          echo "ServiceName=SERVICE_NAME" >> $GITHUB_ENV
-          echo "ENV=ENV" >> $GITHUB_ENV
-          echo "CodeBucket=BUCKET" >> $GITHUB_ENV
-          echo "CODE_KEY=$CODE_KEY" >> $GITHUB_ENV
-          echo "DatabaseBucket=$DATA_BUCKET" >> $GITHUB_ENV
-          echo "DatabaseKey=DATABASE_KEY" >> $GITHUB_ENV
 
-          echo  " ServiceName=${SERVICE_NAME} 
-              Environment=${ENV} 
-              CodeBucket=${BUCKET} 
-              CodeKey=${CODE_KEY}  
-              DatabaseBucket=${$DATA_BUCKET} 
-              DatabaseKey=${DATABASE_KEY} 
-          
-          
           aws cloudformation deploy \
             --template-file cft/cft-doctor-service-infra.yaml \
             --stack-name $STACK_NAME \
             --capabilities CAPABILITY_NAMED_IAM \
             --no-fail-on-empty-changeset \
             --parameter-overrides \
-              ServiceName=${SERVICE_NAME} 
-              Environment=${ENV} 
-              CodeBucket=${BUCKET} 
-              CodeKey=${CODE_KEY}  
-              DatabaseBucket=${$DATA_BUCKET} 
-              DatabaseKey=${DATABASE_KEY} 
+              ServiceName=${SERVICE_NAME} \
+              Environment=${ENV} \
+              CodeBucket=${CODE_BUCKET} \
+              CodeKey=${CODE_KEY} \
+              DatabaseBucket=${DATABASE_BUCKET} \
+              DatabaseKey=${DATABASE_KEY}
 
       # ----------------------
       # OUTPUT API URL
       # ----------------------
       - name: Output API URL
         run: |
-          DOCTOR_SERVICE_API_URL=$(aws cloudformation describe-stacks \
-            --stack-name ${ENV}-jsvm-${SERVICE_NAME} \
+          STACK_NAME="jsvm-${ENV}-${SERVICE_NAME}"
+
+          API_URL=$(aws cloudformation describe-stacks \
+            --stack-name $STACK_NAME \
             --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" \
             --output text)
 
-          echo "🚀 API URL: $DOCTOR_SERVICE_API_URL"
+          echo "🚀 API URL: $API_URL"
+          echo "API_URL=$API_URL" >> $GITHUB_ENV
 
       # ----------------------
       # SUMMARY
