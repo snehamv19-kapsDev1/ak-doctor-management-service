@@ -50,7 +50,7 @@ jobs:
       - name: Build package
         run: |
           mkdir -p build
-          cd lambdas
+          cd doctor-service-handler
           zip -r ../build/${SERVICE_NAME}.zip . -x "*.git*" "__pycache__/*"
           cd ..
 
