@@ -25,14 +25,6 @@ Resources:
     Properties:
       BucketName: !Sub "${ServiceName}-${Environment}-data"
 
-# Optional: initial file
-  InitialDoctorsFile:
-    Type: AWS::S3::Object
-    Properties:
-      Bucket: !Ref DataBucket
-      Key: doctors.json
-      ContentType: application/json
-      Body: "[]"
 
 # =========================================================
 # IAM ROLE
