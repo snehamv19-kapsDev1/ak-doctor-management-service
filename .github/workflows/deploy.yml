@@ -112,7 +112,7 @@ jobs:
       # ----------------------
       - name: Upload Lambda Zip
         run: |
-          CODE_KEY="${ENV}/${SERVICE_NAME}-${GITHUB_SHA}.zip"
+          CODE_KEY="${ENV}/${SERVICE_NAME}.zip"
 
           aws s3 cp \
             build/${SERVICE_NAME}.zip \
@@ -129,7 +129,23 @@ jobs:
       - name: Deploy Stack
         run: |
           STACK_NAME="jsvm-${ENV}-${SERVICE_NAME}"
+          
+          
+          echo "ServiceName=SERVICE_NAME" >> $GITHUB_ENV
+          echo "ENV=ENV" >> $GITHUB_ENV
+          echo "CodeBucket=BUCKET" >> $GITHUB_ENV
+          echo "CODE_KEY=$CODE_KEY" >> $GITHUB_ENV
+          echo "DatabaseBucket=$DATA_BUCKET" >> $GITHUB_ENV
+          echo "DatabaseKey=DATABASE_KEY" >> $GITHUB_ENV
 
+          echo  " ServiceName=${SERVICE_NAME} 
+              Environment=${ENV} 
+              CodeBucket=${BUCKET} 
+              CodeKey=${CODE_KEY}  
+              DatabaseBucket=${$DATA_BUCKET} 
+              DatabaseKey=${DATABASE_KEY} 
+          
+          
           aws cloudformation deploy \
             --template-file cft/cft-doctor-service-infra.yaml \
             --stack-name $STACK_NAME \

@@ -2,7 +2,7 @@ import json
 from service_logic import create_doctor, get_all_doctors
 
 def lambda_handler(event, context):
-    return response(200, "LAMBDA EXECUTED")
+    return response(200, "LAMBDA EXECUTED SUCCESSFULLY " + event)
 
     # try:
     #     http_method = event.get("httpMethod")
