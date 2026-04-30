@@ -63,11 +63,22 @@ Resources:
     Properties:
       LogGroupName: !Sub "/aws/lambda/${Environment}-${ServiceName}-crud"
       RetentionInDays: 14
+# =========================================================
+# PERMISSION
+# =========================================================
+  LambdaPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn: DoctorServiceFunction
+    Properties:
+      FunctionName: !Ref DoctorServiceFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${Api}/*/*/*
 
 # =========================================================
 # LAMBDA FUNCTION (ZIP FROM S3)
 # =========================================================
-  CrudLambda:
+  DoctorServiceFunction:
     Type: AWS::Lambda::Function
     DependsOn: LambdaLogGroup
     Properties:
@@ -121,8 +132,7 @@ Resources:
         Type: AWS_PROXY
         IntegrationHttpMethod: POST
         Uri: !Sub >
-          arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CrudLambda.Arn}/invocations
-
+          arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DoctorServiceFunction.Arn}/invocations
   CreateItem:
     Type: AWS::ApiGateway::Method
     Properties:
@@ -134,7 +144,7 @@ Resources:
         Type: AWS_PROXY
         IntegrationHttpMethod: POST
         Uri: !Sub >
-          arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CrudLambda.Arn}/invocations
+          arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DoctorServiceFunction.Arn}/invocations
 
 # =========================================================
 # DEPLOYMENT + STAGE
@@ -154,16 +164,6 @@ Resources:
       RestApiId: !Ref Api
       DeploymentId: !Ref Deployment
 
-# =========================================================
-# PERMISSION
-# =========================================================
-  LambdaPermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName: !Ref CrudLambda
-      Action: lambda:InvokeFunction
-      Principal: apigateway.amazonaws.com
-      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${Api}/*/*/*
 
 # =========================================================
 # OUTPUT
