@@ -53,7 +53,22 @@ jobs:
           cd doctor-service-handler
           zip -r ../build/${SERVICE_NAME}.zip . -x "*.git*" "__pycache__/*"
           cd ..
-
+      # ----------------------
+      # GET DATA BUCKET
+      # ----------------------
+      - name: Get Data Bucket
+        run: |
+          DATA_BUCKET=$(aws ssm get-parameter \
+            --name "/${ENV}/jsvm/database-bucket-name" \
+            --query "Parameter.Value" \
+            --output text)
+      
+          if [ -z "$DATA_BUCKET" ] || [ "$DATA_BUCKET" == "None" ]; then
+              echo "❌ data bucket not found in SSM"
+            exit 1
+          fi
+      
+          echo "DATA_BUCKET=$DATA_BUCKET" >> $GITHUB_ENV
       # ----------------------
       # LOAD CODE BUCKET FROM SSM
       # ----------------------
@@ -85,24 +100,7 @@ jobs:
           echo "CODE_KEY=$CODE_KEY" >> $GITHUB_ENV
 
 
-      # ----------------------
-      # GET DATA BUCKET
-      # ----------------------
-      - name: Get Data Bucket
-        run: |
-          DATA_BUCKET=$(aws cloudformation describe-stacks \
-            --stack-name jsvm-${ENV}-${SERVICE_NAME} \
-            --query "Stacks[0].Outputs[?OutputKey=='DataBucket'].OutputValue" \
-            --output text)
 
-          if [ -z "$DATA_BUCKET" ] || [ "$DATA_BUCKET" == "None" ]; then
-            echo "❌ Data bucket not found"
-            exit 1
-          fi
-
-          echo "DATA_BUCKET=$DATA_BUCKET" >> $GITHUB_ENV
-
-      # ----------------------
       # INITIALIZE doctors.json
       # ----------------------
       - name: Initialize doctors.json
