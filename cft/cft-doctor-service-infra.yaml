@@ -123,6 +123,7 @@ Resources:
 # =========================================================
   GetItems:
     Type: AWS::ApiGateway::Method
+    DependsOn: LambdaPermission
     Properties:
       RestApiId: !Ref Api
       ResourceId: !Ref Items
@@ -135,6 +136,7 @@ Resources:
           arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DoctorServiceFunction.Arn}/invocations
   CreateItem:
     Type: AWS::ApiGateway::Method
+    DependsOn: LambdaPermission
     Properties:
       RestApiId: !Ref Api
       ResourceId: !Ref Item
