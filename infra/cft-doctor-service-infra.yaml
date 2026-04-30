@@ -1,0 +1,181 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CRUD API (Lambda + API Gateway + CloudWatch + S3 JSON DB)
+
+Parameters:
+  Environment:
+    Type: String
+    AllowedValues: [dev, test, prod]
+
+  ServiceName:
+    Type: String
+
+  CodeBucket:
+    Type: String
+
+  CodeKey:
+    Type: String
+
+Resources:
+
+# =========================================================
+# S3 DATA BUCKET (JSON DB)
+# =========================================================
+  DataBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${ServiceName}-${Environment}-data"
+
+# Optional: initial file
+  InitialDoctorsFile:
+    Type: AWS::S3::Object
+    Properties:
+      Bucket: !Ref DataBucket
+      Key: doctors.json
+      ContentType: application/json
+      Body: "[]"
+
+# =========================================================
+# IAM ROLE
+# =========================================================
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${Environment}-${ServiceName}-lambda-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+      Policies:
+        - PolicyName: S3Access
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: !Sub "${DataBucket.Arn}/*"
+
+# =========================================================
+# CLOUDWATCH LOG GROUP
+# =========================================================
+  LambdaLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${Environment}-${ServiceName}-crud"
+      RetentionInDays: 14
+
+# =========================================================
+# LAMBDA FUNCTION (ZIP FROM S3)
+# =========================================================
+  CrudLambda:
+    Type: AWS::Lambda::Function
+    DependsOn: LambdaLogGroup
+    Properties:
+      FunctionName: !Sub "${Environment}-${ServiceName}-crud"
+      Runtime: python3.11
+      Handler: lambda_handler.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 20
+
+      Code:
+        S3Bucket: !Ref CodeBucket
+        S3Key: !Ref CodeKey
+
+      Environment:
+        Variables:
+          BUCKET: !Ref DataBucket
+
+# =========================================================
+# API GATEWAY
+# =========================================================
+  Api:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: !Sub "${Environment}-${ServiceName}-api"
+
+  Items:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref Api
+      ParentId: !GetAtt Api.RootResourceId
+      PathPart: items
+
+  Item:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref Api
+      ParentId: !GetAtt Api.RootResourceId
+      PathPart: item
+
+# =========================================================
+# METHODS
+# =========================================================
+  GetItems:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref Items
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub >
+          arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CrudLambda.Arn}/invocations
+
+  CreateItem:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref Item
+      HttpMethod: POST
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub >
+          arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CrudLambda.Arn}/invocations
+
+# =========================================================
+# DEPLOYMENT + STAGE
+# =========================================================
+  Deployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - GetItems
+      - CreateItem
+    Properties:
+      RestApiId: !Ref Api
+
+  Stage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      StageName: !Ref Environment
+      RestApiId: !Ref Api
+      DeploymentId: !Ref Deployment
+
+# =========================================================
+# PERMISSION
+# =========================================================
+  LambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref CrudLambda
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${Api}/*/*/*
+
+# =========================================================
+# OUTPUT
+# =========================================================
+Outputs:
+  ApiUrl:
+    Value: !Sub "https://${Api}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"

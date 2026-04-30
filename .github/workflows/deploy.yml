@@ -1,0 +1,158 @@
+name: Deploy CRUD S3 Service
+
+on:
+  push:
+    branches: [dev, test, main]
+
+env:
+  AWS_REGION: us-west-2
+  SERVICE_NAME: doctor-service
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ----------------------
+      # CHECKOUT
+      # ----------------------
+      - uses: actions/checkout@v4
+
+      # ----------------------
+      # SET ENVIRONMENT
+      # ----------------------
+      - name: Set Environment
+        run: |
+          case "${GITHUB_REF_NAME}" in
+            main) ENV=prod ;;
+            test) ENV=test ;;
+            dev)  ENV=dev  ;;
+            *)
+              echo "❌ Invalid branch"
+              exit 1
+              ;;
+          esac
+          echo "ENV=$ENV" >> $GITHUB_ENV
+
+      # ----------------------
+      # AWS AUTH
+      # ----------------------
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # ----------------------
+      # BUILD LAMBDA ZIP
+      # ----------------------
+      - name: Build package
+        run: |
+          mkdir -p build
+          cd lambdas
+          zip -r ../build/${SERVICE_NAME}.zip . -x "*.git*" "__pycache__/*"
+          cd ..
+
+      # ----------------------
+      # LOAD CODE BUCKET FROM SSM
+      # ----------------------
+      - name: Load Code Bucket from SSM
+        run: |
+          BUCKET=$(aws ssm get-parameter \
+            --name "/${ENV}/jsvm/code-bucket-name" \
+            --query "Parameter.Value" \
+            --output text)
+      
+          if [ -z "$BUCKET" ] || [ "$BUCKET" == "None" ]; then
+            echo "❌ Code bucket not found in SSM"
+            exit 1
+          fi
+      
+          echo "BUCKET=$BUCKET" >> $GITHUB_ENV
+
+      # ----------------------
+      # UPLOAD ZIP (versioned)
+      # ----------------------
+      - name: Upload Lambda Zip
+        run: |
+          CODE_KEY="${ENV}/${SERVICE_NAME}-${GITHUB_SHA}.zip"
+
+          aws s3 cp \
+            build/${SERVICE_NAME}.zip \
+            s3://$BUCKET/$CODE_KEY
+
+          echo "CODE_KEY=$CODE_KEY" >> $GITHUB_ENV
+
+      # ----------------------
+      # DEPLOY CLOUDFORMATION
+      # ----------------------
+      - name: Deploy Stack
+        run: |
+          STACK_NAME="jsvm-${ENV}-${SERVICE_NAME}"
+
+          aws cloudformation deploy \
+            --template-file infra/service-infra-cft.yaml \
+            --stack-name $STACK_NAME \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides ServiceName=${SERVICE_NAME} Environment=${ENV} CodeBucket=${BUCKET} CodeKey=${CODE_KEY}
+
+      # ----------------------
+      # GET DATA BUCKET
+      # ----------------------
+      - name: Get Data Bucket
+        run: |
+          DATA_BUCKET=$(aws cloudformation describe-stacks \
+            --stack-name jsvm-${ENV}-${SERVICE_NAME} \
+            --query "Stacks[0].Outputs[?OutputKey=='DataBucket'].OutputValue" \
+            --output text)
+
+          if [ -z "$DATA_BUCKET" ] || [ "$DATA_BUCKET" == "None" ]; then
+            echo "❌ Data bucket not found"
+            exit 1
+          fi
+
+          echo "DATA_BUCKET=$DATA_BUCKET" >> $GITHUB_ENV
+
+      # ----------------------
+      # INITIALIZE doctors.json
+      # ----------------------
+      - name: Initialize doctors.json
+        run: |
+          if ! aws s3api head-object \
+            --bucket $DATA_BUCKET \
+            --key doctors.json 2>/dev/null; then
+
+            echo "Creating doctors.json..."
+            echo "[]" > doctors.json
+
+            aws s3 cp doctors.json \
+              s3://$DATA_BUCKET/doctors.json \
+              --content-type application/json
+          else
+            echo "doctors.json already exists"
+          fi
+
+      # ----------------------
+      # OUTPUT API URL
+      # ----------------------
+      - name: Output API URL
+        run: |
+          DOCTOR_SERVICE_API_URL=$(aws cloudformation describe-stacks \
+            --stack-name ${ENV}-jsvm-${SERVICE_NAME} \
+            --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" \
+            --output text)
+
+          echo "🚀 API URL: $DOCTOR_SERVICE_API_URL"
+
+      # ----------------------
+      # SUMMARY
+      # ----------------------
+      - name: Publish Summary
+        run: |
+          echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Service:** $SERVICE_NAME" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** $ENV" >> $GITHUB_STEP_SUMMARY
+          echo "**API URL:** $API_URL" >> $GITHUB_STEP_SUMMARY

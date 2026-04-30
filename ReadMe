@@ -1,4 +1,20 @@
 
+doctor-service-repo/
+├── lambdas/
+│   ├── createDoctor/
+│   │   ├── handler.py
+│   │   └── cfn.yaml   (optional override)
+│   ├── getDoctor/
+│   ├── updateDoctor/
+│   └── deleteDoctor/
+│
+├── infra/
+│   ├── base-lambda.yaml   ← reusable template
+│   ├── stack-map.json     ← maps lambda → stack name
+│
+└── .github/workflows/deploy.yml
+
+
 zip -r createDoctor.zip  lambdas/createDoctor
 
 aws s3 cp createDoctor.zip s3://s3-jsvm-dev-env/dev-doctor-service/
