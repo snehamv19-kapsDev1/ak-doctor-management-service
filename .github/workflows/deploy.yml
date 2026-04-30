@@ -36,6 +36,17 @@ jobs:
           echo "ENV=$ENV" >> $GITHUB_ENV
 
       # ----------------------
+      # DETECT INFRA CHANGES
+      # ----------------------
+      - name: Detect Infra Changes
+        run: |
+          if git diff --name-only HEAD~1 | grep -q "^cft/"; then
+            echo "INFRA_CHANGED=true" >> $GITHUB_ENV
+          else
+            echo "INFRA_CHANGED=false" >> $GITHUB_ENV
+          fi
+
+      # ----------------------
       # AWS AUTH
       # ----------------------
       - name: Configure AWS Credentials
@@ -56,7 +67,7 @@ jobs:
           cd ..
 
       # ----------------------
-      # GET DATABASE BUCKET (SSM)
+      # GET DATABASE BUCKET
       # ----------------------
       - name: Get Database Bucket
         run: |
@@ -65,15 +76,12 @@ jobs:
             --query "Parameter.Value" \
             --output text)
 
-          if [ -z "$DATABASE_BUCKET" ] || [ "$DATABASE_BUCKET" == "None" ]; then
-            echo "❌ Database bucket not found in SSM"
-            exit 1
-          fi
+          [ -z "$DATABASE_BUCKET" ] && echo "❌ Missing DB bucket" && exit 1
 
           echo "DATABASE_BUCKET=$DATABASE_BUCKET" >> $GITHUB_ENV
 
       # ----------------------
-      # INITIALIZE doctors.json
+      # INIT DATA FILE
       # ----------------------
       - name: Initialize doctors.json
         run: |
@@ -84,18 +92,15 @@ jobs:
             --bucket $DATABASE_BUCKET \
             --key "$DATABASE_KEY/doctors.json" 2>/dev/null; then
 
-            echo "Creating doctors.json..."
             echo "[]" > doctors.json
 
             aws s3 cp doctors.json \
               s3://$DATABASE_BUCKET/$DATABASE_KEY/doctors.json \
               --content-type application/json
-          else
-            echo "doctors.json already exists"
           fi
 
       # ----------------------
-      # GET CODE BUCKET (SSM)
+      # GET CODE BUCKET
       # ----------------------
       - name: Get Code Bucket
         run: |
@@ -104,46 +109,55 @@ jobs:
             --query "Parameter.Value" \
             --output text)
 
-          if [ -z "$CODE_BUCKET" ] || [ "$CODE_BUCKET" == "None" ]; then
-            echo "❌ Code bucket not found in SSM"
-            exit 1
-          fi
+          [ -z "$CODE_BUCKET" ] && echo "❌ Missing code bucket" && exit 1
 
           echo "CODE_BUCKET=$CODE_BUCKET" >> $GITHUB_ENV
 
       # ----------------------
-      # UPLOAD LAMBDA ZIP
+      # UPLOAD ZIP
       # ----------------------
       - name: Upload Lambda Zip
         run: |
           CODE_KEY="${ENV}/${SERVICE_NAME}.zip"
 
-          aws s3 cp \
-            build/${SERVICE_NAME}.zip \
+          aws s3 cp build/${SERVICE_NAME}.zip \
             s3://$CODE_BUCKET/$CODE_KEY
 
           echo "CODE_KEY=$CODE_KEY" >> $GITHUB_ENV
 
       # ----------------------
-      # PRINT PARAMETERS (DEBUG)
+      # PRINT PARAMETERS
       # ----------------------
-      - name: Print Deployment Parameters
+      - name: Print Parameters
         run: |
-          echo "=============================="
-          echo "🚀 CloudFormation Parameters"
-          echo "=============================="
           echo "ServiceName=${SERVICE_NAME}"
           echo "Environment=${ENV}"
           echo "CodeBucket=${CODE_BUCKET}"
           echo "CodeKey=${CODE_KEY}"
           echo "DatabaseBucket=${DATABASE_BUCKET}"
           echo "DatabaseKey=${DATABASE_KEY}"
-          echo "=============================="
+          echo "InfraChanged=${INFRA_CHANGED}"
 
       # ----------------------
-      # DEPLOY CLOUDFORMATION
+      # UPDATE LAMBDA CODE (FAST PATH)
+      # ----------------------
+      - name: Update Lambda Code
+        if: env.INFRA_CHANGED == 'false'
+        run: |
+          FUNCTION_NAME="jsvm-${ENV}-${SERVICE_NAME}"
+
+          aws lambda update-function-code \
+            --function-name $FUNCTION_NAME \
+            --s3-bucket $CODE_BUCKET \
+            --s3-key $CODE_KEY
+
+          echo "⚡ Lambda code updated (no infra change)"
+
+      # ----------------------
+      # DEPLOY CLOUDFORMATION (ONLY IF INFRA CHANGED)
       # ----------------------
       - name: Deploy Stack
+        if: env.INFRA_CHANGED == 'true'
         run: |
           STACK_NAME="jsvm-${ENV}-${SERVICE_NAME}"
 
@@ -160,6 +174,8 @@ jobs:
               DatabaseBucket=${DATABASE_BUCKET} \
               DatabaseKey=${DATABASE_KEY}
 
+          echo "🔧 Infra deployed"
+
       # ----------------------
       # OUTPUT API URL
       # ----------------------
@@ -172,16 +188,16 @@ jobs:
             --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" \
             --output text)
 
-          echo "🚀 API URL: $API_URL"
           echo "API_URL=$API_URL" >> $GITHUB_ENV
+          echo "🚀 API URL: $API_URL"
 
       # ----------------------
       # SUMMARY
       # ----------------------
-      - name: Publish Summary
+      - name: Summary
         run: |
           echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Service:** $SERVICE_NAME" >> $GITHUB_STEP_SUMMARY
           echo "**Environment:** $ENV" >> $GITHUB_STEP_SUMMARY
+          echo "**Infra Changed:** $INFRA_CHANGED" >> $GITHUB_STEP_SUMMARY
           echo "**API URL:** $API_URL" >> $GITHUB_STEP_SUMMARY
