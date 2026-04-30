@@ -5,13 +5,15 @@ import uuid
 
 s3 = boto3.client("s3")
 
-BUCKET = os.environ.get("BUCKET")
+DATABASE_BUCKET = os.environ.get("DATABASE_BUCKET")
+DATABASE_KEY = os.environ.get("DATABASE_KEY")
+
 KEY = "doctors.json"
 
 
 def get_all_doctors():
     try:
-        obj = s3.get_object(Bucket=BUCKET, Key=KEY)
+        obj = s3.get_object(Bucket=DATABASE_BUCKET, Key=DATABASE_KEY)
         data = json.loads(obj["Body"].read())
     except s3.exceptions.NoSuchKey:
         data = []
@@ -21,7 +23,7 @@ def get_all_doctors():
 
 def create_doctor(body):
     try:
-        obj = s3.get_object(Bucket=BUCKET, Key=KEY)
+        obj = s3.get_object(Bucket=DATABASE_BUCKET, Key=DATABASE_KEY)
         data = json.loads(obj["Body"].read())
     except s3.exceptions.NoSuchKey:
         data = []
@@ -35,8 +37,8 @@ def create_doctor(body):
     data.append(new_doctor)
 
     s3.put_object(
-        Bucket=BUCKET,
-        Key=KEY,
+        Bucket=DATABASE_BUCKET,
+        Key=DATABASE_KEY,
         Body=json.dumps(data)
     )
 

@@ -15,6 +15,12 @@ Parameters:
   CodeKey:
     Type: String
 
+  DatabaseBucket:
+    Type: String
+
+  DatabaseKey:
+    Type: String
+
 Resources:
 #
 ## =========================================================
@@ -96,7 +102,8 @@ Resources:
 
       Environment:
         Variables:
-          BUCKET: !Ref DataBucket
+          DATABASE_BUCKET: !Ref DatabaseBucket
+          DATABASE_KEY: !Ref DatabaseKey
 
 # =========================================================
 # API GATEWAY

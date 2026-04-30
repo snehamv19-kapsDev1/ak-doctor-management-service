@@ -69,6 +69,27 @@ jobs:
           fi
       
           echo "DATA_BUCKET=$DATA_BUCKET" >> $GITHUB_ENV
+
+      # INITIALIZE doctors.json
+      # ----------------------
+      - name: Initialize doctors.json
+        run: |
+          DATABASE_KEY="${ENV}"
+
+          if ! aws s3api head-object \
+            --bucket $DATA_BUCKET/$DATABASE_KEY/doctors.json \
+            --key doctors.json 2>/dev/null; then
+
+            echo "Creating doctors.json..."
+            echo "[]" > doctors.json
+
+            aws s3 cp doctors.json \
+              s3://$DATA_BUCKET/$DATABASE_KEY/doctors.json \
+              --content-type application/json
+          else
+            echo "doctors.json already exists"
+          fi
+
       # ----------------------
       # LOAD CODE BUCKET FROM SSM
       # ----------------------
@@ -101,23 +122,6 @@ jobs:
 
 
 
-      # INITIALIZE doctors.json
-      # ----------------------
-      - name: Initialize doctors.json
-        run: |
-          if ! aws s3api head-object \
-            --bucket $DATA_BUCKET \
-            --key doctors.json 2>/dev/null; then
-
-            echo "Creating doctors.json..."
-            echo "[]" > doctors.json
-
-            aws s3 cp doctors.json \
-              s3://$DATA_BUCKET/doctors.json \
-              --content-type application/json
-          else
-            echo "doctors.json already exists"
-          fi
 
       # ----------------------
       # DEPLOY CLOUDFORMATION
@@ -131,7 +135,13 @@ jobs:
             --stack-name $STACK_NAME \
             --capabilities CAPABILITY_NAMED_IAM \
             --no-fail-on-empty-changeset \
-            --parameter-overrides ServiceName=${SERVICE_NAME} Environment=${ENV} CodeBucket=${BUCKET} CodeKey=${CODE_KEY}
+            --parameter-overrides \
+              ServiceName=${SERVICE_NAME} 
+              Environment=${ENV} 
+              CodeBucket=${BUCKET} 
+              CodeKey=${CODE_KEY}  
+              DatabaseBucket=${$DATA_BUCKET} 
+              DatabaseKey=${DATABASE_KEY} 
 
       # ----------------------
       # OUTPUT API URL
