@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: CRUD API (Lambda + API Gateway + CloudWatch + S3 JSON DB)
+Description: Doctor Service API (Lambda + API Gateway + CloudWatch + S3 JSON DB)
 
 Parameters:
   Environment:
@@ -22,15 +22,6 @@ Parameters:
     Type: String
 
 Resources:
-#
-## =========================================================
-## S3 DATA BUCKET (JSON DB)
-## =========================================================
-#  DataBucket:
-#    Type: AWS::S3::Bucket
-#    Properties:
-#      BucketName: !Sub "${ServiceName}-${Environment}-data"
-#
 
 # =========================================================
 # IAM ROLE
@@ -46,21 +37,6 @@ Resources:
             Principal:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
-#
-#      ManagedPolicyArns:
-#        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-#
-#      Policies:
-#        - PolicyName: S3Access
-#          PolicyDocument:
-#            Version: "2012-10-17"
-#            Statement:
-#              - Effect: Allow
-#                Action:
-#                  - s3:GetObject
-#                  - s3:PutObject
-#                Resource: !Sub "${DataBucket.Arn}/*"
-
 
       Policies:
         - PolicyName: lambda-s3-access
@@ -162,7 +138,7 @@ Resources:
   LambdaLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/aws/lambda/${Environment}-${ServiceName}-crud"
+      LogGroupName: !Sub "/aws/lambda/${Environment}-${ServiceName}"
       RetentionInDays: 14
 
 

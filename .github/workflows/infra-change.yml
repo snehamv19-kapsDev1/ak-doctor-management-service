@@ -50,7 +50,7 @@ jobs:
       # ----------------------
       # BUILD LAMBDA ZIP
       # ----------------------
-      - name: Build package
+      - name: Build lambda zip
         run: |
           mkdir -p build
           cd code
@@ -105,7 +105,7 @@ jobs:
           echo "CODE_BUCKET=$CODE_BUCKET" >> $GITHUB_ENV
 
       # ----------------------
-      # UPLOAD ZIP
+      # UPLOAD ZIP TO S3
       # ----------------------
       - name: Upload Lambda Zip
         run: |
@@ -127,28 +127,12 @@ jobs:
           echo "CodeKey=${CODE_KEY}"
           echo "DatabaseBucket=${DATABASE_BUCKET}"
           echo "DatabaseKey=${DATABASE_KEY}"
-          
-
-#      # ----------------------
-#      # UPDATE LAMBDA CODE (FAST PATH)
-#      # ----------------------
-#      - name: Update Lambda Code
-#        if: env.INFRA_CHANGED == 'false'
-#        run: |
-#          FUNCTION_NAME="${Environment}-jsvm-${ServiceName}-lambda"
-#
-#          aws lambda update-function-code \
-#            --function-name $FUNCTION_NAME \
-#            --s3-bucket $CODE_BUCKET \
-#            --s3-key $CODE_KEY
-#
-#          echo "⚡ Lambda code updated (no infra change)"
+  
 
       # ----------------------
       # DEPLOY CLOUDFORMATION (ONLY IF INFRA CHANGED)
       # ----------------------
       - name: Deploy Stack
-        if: env.INFRA_CHANGED == 'true'
         run: |
           STACK_NAME="${Environment}-jsvm-${ServiceName}"
 

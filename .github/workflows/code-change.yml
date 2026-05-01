@@ -49,9 +49,9 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       # ----------------------
-      # BUILD LAMBDA PACKAGE
+      # BUILD LAMBDA ZIP
       # ----------------------
-      - name: Build Lambda Package
+      - name: Build lambda zip
         run: |
           mkdir -p build
 
@@ -98,40 +98,40 @@ jobs:
 
           echo "✅ Lambda updated"
 
-      # ----------------------
-      # DEPLOY API GATEWAY (OPTIONAL)
-      # ----------------------
-      - name: Deploy API Gateway Stack
-        run: |
-          STACK_NAME="${ENV}-jsvm-${SERVICE_NAME}"
+#      # ----------------------
+#      # DEPLOY API GATEWAY (OPTIONAL)
+#      # ----------------------
+#      - name: Deploy API Gateway Stack
+#        run: |
+#          STACK_NAME="${ENV}-jsvm-${SERVICE_NAME}"
+#
+#          aws cloudformation deploy \
+#            --template-file cft/api-gateway-cft.yml \
+#            --stack-name $STACK_NAME \
+#            --capabilities CAPABILITY_NAMED_IAM \
+#            --no-fail-on-empty-changeset \
+#            --parameter-overrides \
+#              ServiceName=${SERVICE_NAME} \
+#              Environment=${ENV} \
+#              CodeBucket=${CODE_BUCKET} \
+#              CodeKey=${CODE_KEY}
+#
+#          echo "🚀 API Gateway updated"
 
-          aws cloudformation deploy \
-            --template-file cft/api-gateway-cft.yml \
-            --stack-name $STACK_NAME \
-            --capabilities CAPABILITY_NAMED_IAM \
-            --no-fail-on-empty-changeset \
-            --parameter-overrides \
-              ServiceName=${SERVICE_NAME} \
-              Environment=${ENV} \
-              CodeBucket=${CODE_BUCKET} \
-              CodeKey=${CODE_KEY}
-
-          echo "🚀 API Gateway updated"
-
-      # ----------------------
-      # OUTPUT API URL
-      # ----------------------
-      - name: Output API URL
-        run: |
-          STACK_NAME="${ENV}-jsvm-${SERVICE_NAME}"
-
-          API_URL=$(aws cloudformation describe-stacks \
-            --stack-name $STACK_NAME \
-            --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" \
-            --output text)
-
-          echo "API_URL=$API_URL" >> $GITHUB_ENV
-          echo "🚀 API URL: $API_URL"
+#      # ----------------------
+#      # OUTPUT API URL
+#      # ----------------------
+#      - name: Output API URL
+#        run: |
+#          STACK_NAME="${ENV}-jsvm-${SERVICE_NAME}"
+#
+#          API_URL=$(aws cloudformation describe-stacks \
+#            --stack-name $STACK_NAME \
+#            --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" \
+#            --output text)
+#
+#          echo "API_URL=$API_URL" >> $GITHUB_ENV
+#          echo "🚀 API URL: $API_URL"
 
       # ----------------------
       # SUMMARY
@@ -139,7 +139,7 @@ jobs:
       - name: Summary
         run: |
           echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
-          echo "**Service:** $SERVICE_NAME" >> $GITHUB_STEP_SUMMARY
-          echo "**Environment:** $ENV" >> $GITHUB_STEP_SUMMARY
-          echo "**Lambda:** Updated from code/**" >> $GITHUB_STEP_SUMMARY
-          echo "**API URL:** $API_URL" >> $GITHUB_STEP_SUMMARY
+#          echo "**Service:** $SERVICE_NAME" >> $GITHUB_STEP_SUMMARY
+#          echo "**Environment:** $ENV" >> $GITHUB_STEP_SUMMARY
+#          echo "**Lambda:** Updated from code/**" >> $GITHUB_STEP_SUMMARY
+#          echo "**API URL:** $API_URL" >> $GITHUB_STEP_SUMMARY
