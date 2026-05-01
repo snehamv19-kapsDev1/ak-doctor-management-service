@@ -5,7 +5,7 @@ def lambda_handler(event, context):
     return {
         "statusCode": 200,
         "body": json.dumps({
-            "message": "LAMBDA EXECUTED SUCCESSFULLY",
+            "message": "LAMBDA EXECUTED SUCCESSFULLY dfasf ",
             "event": event
         })
     }
