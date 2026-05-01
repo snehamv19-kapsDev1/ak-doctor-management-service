@@ -134,7 +134,7 @@ jobs:
       # ----------------------
       - name: Deploy Stack
         run: |
-          STACK_NAME="${Environment}-jsvm-${SERVICE_NAME}"
+          STACK_NAME="${ENV}-jsvm-${SERVICE_NAME}"
 
           aws cloudformation deploy \
             --template-file cft/cft-doctor-service-infra.yaml \
