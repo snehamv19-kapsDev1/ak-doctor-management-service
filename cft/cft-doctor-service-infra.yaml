@@ -90,7 +90,7 @@ Resources:
     Type: AWS::Lambda::Function
     DependsOn: LambdaLogGroup
     Properties:
-      FunctionName: !Sub "${Environment}-${ServiceName}-crud"
+      FunctionName: !Sub "${Environment}-jsvm-${ServiceName}-lambda"
       Runtime: python3.11
       Handler: lambda_handler.lambda_handler
       Role: !GetAtt LambdaExecutionRole.Arn

@@ -144,7 +144,7 @@ jobs:
       - name: Update Lambda Code
         if: env.INFRA_CHANGED == 'false'
         run: |
-          FUNCTION_NAME="jsvm-${ENV}-${SERVICE_NAME}"
+          FUNCTION_NAME="${Environment}-jsvm-${ServiceName}-lambda"
 
           aws lambda update-function-code \
             --function-name $FUNCTION_NAME \
@@ -159,7 +159,7 @@ jobs:
       - name: Deploy Stack
         if: env.INFRA_CHANGED == 'true'
         run: |
-          STACK_NAME="jsvm-${ENV}-${SERVICE_NAME}"
+          STACK_NAME="${Environment}-jsvm-${ServiceName}"
 
           aws cloudformation deploy \
             --template-file cft/cft-doctor-service-infra.yaml \
