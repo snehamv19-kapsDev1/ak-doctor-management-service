@@ -1,4 +1,4 @@
-name: Deploy Lambda + API Gateway (code changes only)
+name:  Update Lambda + Deploy API Gateway (code changes only)
 
 on:
   push:
