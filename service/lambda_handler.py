@@ -29,7 +29,7 @@ def lambda_handler(event, context):
         if method == "DELETE" and doctor_id:
             return delete_doctor(repo, doctor_id)
 
-        return response(404, {"message": "Route not found"})
+        return response(404, {"message": "Routes not found"})
 
     except Exception as e:
         return response(500, {"error": str(e)})
