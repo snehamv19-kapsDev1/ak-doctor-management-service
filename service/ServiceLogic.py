@@ -1,6 +1,6 @@
 import uuid
-from service.Validation import validate_create, validate_update
-from service.Response import response
+from Validation import validate_create, validate_update
+from Response import response
 
 
 def get_all_doctors(repo):

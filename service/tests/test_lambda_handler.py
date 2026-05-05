@@ -4,7 +4,7 @@ import uuid
 import boto3
 import pytest
 from moto import mock_aws
-from service.lambda_handler import lambda_handler
+from ..lambda_handler import lambda_handler
 
 
 @pytest.fixture(autouse=True)

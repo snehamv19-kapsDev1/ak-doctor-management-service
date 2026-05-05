@@ -1,7 +1,7 @@
 import json
-from service.repository import S3Repository
-from service.ServiceLogic import *
-from service.Response import response
+from repository import S3Repository
+from ServiceLogic import *
+from Response import response
 
 
 def lambda_handler(event, context):

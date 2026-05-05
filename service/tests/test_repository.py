@@ -3,7 +3,7 @@ import os
 import boto3
 import pytest
 from moto import mock_aws
-from service.repository import S3Repository
+from ..repository import S3Repository
 
 
 @mock_aws

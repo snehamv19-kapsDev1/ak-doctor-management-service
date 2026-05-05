@@ -1,4 +1,4 @@
-from service.Validation import validate_create, validate_update
+from ..Validation import validate_create, validate_update
 
 def test_validate_create_success():
     body = {"name": "Dr A", "specialization": "Cardiology"}
