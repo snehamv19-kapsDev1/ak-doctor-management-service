@@ -4,7 +4,7 @@ on:
   push:
     branches: [dev, test, main]
     paths:
-      - 'code/**'   # 👈 ONLY trigger when application code changes
+      - 'service/**'   # 👈 ONLY trigger when application code changes
 
 env:
   AWS_REGION: us-west-2
@@ -55,7 +55,7 @@ jobs:
         run: |
           mkdir -p build
 
-          cd code
+          cd service
           zip -r ../build/${SERVICE_NAME}.zip . \
             -x "*.git*" "__pycache__/*" "*.pyc"
           cd ..
