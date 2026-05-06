@@ -1,10 +1,28 @@
-name:  Update Lambda + Deploy API Gateway (code changes only)
+name: Update Lambda + Deploy API Gateway (code changes only)
 
 on:
   push:
     branches: [dev, test, main]
     paths:
       - 'service/**'   # 👈 ONLY trigger when application code changes
+
+  # Manual trigger for deployment
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - test
+          - prod
+      force_api_gateway_deploy:
+        description: 'Force API Gateway deployment even without endpoint changes'
+        required: false
+        default: false
+        type: boolean
 
 env:
   AWS_REGION: us-west-2
@@ -26,17 +44,23 @@ jobs:
       # ----------------------
       - name: Set Environment
         run: |
-          case "${GITHUB_REF_NAME}" in
-            main) ENV=prod ;;
-            test) ENV=test ;;
-            dev)  ENV=dev ;;
-            *)
-              echo "Invalid branch"
-              exit 1
-              ;;
-          esac
+          # For manual trigger, use input; for push, use branch name
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            ENV="${{ github.event.inputs.environment }}"
+          else
+            case "${GITHUB_REF_NAME}" in
+              main) ENV=prod ;;
+              test) ENV=test ;;
+              dev)  ENV=dev ;;
+              *)
+                echo "Invalid branch"
+                exit 1
+                ;;
+            esac
+          fi
 
           echo "ENV=$ENV" >> $GITHUB_ENV
+          echo "Manual trigger: ${{ github.event_name == 'workflow_dispatch' }}"
 
       # ----------------------
       # AWS AUTH
@@ -85,7 +109,7 @@ jobs:
           echo "CODE_KEY=$CODE_KEY" >> $GITHUB_ENV
 
       # ----------------------
-      # UPDATE LAMBDA CODE (FAST PATH)
+      # UPDATE LAMBDA CODE
       # ----------------------
       - name: Update Lambda Function Code
         run: |
@@ -96,50 +120,102 @@ jobs:
             --s3-bucket $CODE_BUCKET \
             --s3-key $CODE_KEY
 
-          echo "✅ Lambda updated"
+          echo "✅ Lambda function code updated"
 
-#      # ----------------------
-#      # DEPLOY API GATEWAY (OPTIONAL)
-#      # ----------------------
-#      - name: Deploy API Gateway Stack
-#        run: |
-#          STACK_NAME="${ENV}-jsvm-${SERVICE_NAME}"
-#
-#          aws cloudformation deploy \
-#            --template-file cft/api-gateway-cft.yml \
-#            --stack-name $STACK_NAME \
-#            --capabilities CAPABILITY_NAMED_IAM \
-#            --no-fail-on-empty-changeset \
-#            --parameter-overrides \
-#              ServiceName=${SERVICE_NAME} \
-#              Environment=${ENV} \
-#              CodeBucket=${CODE_BUCKET} \
-#              CodeKey=${CODE_KEY}
-#
-#          echo "🚀 API Gateway updated"
+      # ----------------------
+      # CHECK FOR ENDPOINT CHANGES
+      # ----------------------
+      - name: Check for Endpoint Changes
+        id: check_endpoints
+        run: |
+          # Force deploy if manually triggered with flag
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ "${{ github.event.inputs.force_api_gateway_deploy }}" == "true" ]; then
+            echo "endpoint_changed=true" >> $GITHUB_OUTPUT
+            echo "🔧 Manual trigger: Force API Gateway deployment enabled"
+          # Check if lambda_handler.py or any route-related files changed (for push events)
+          elif [ "${{ github.event_name }}" == "push" ] && git diff HEAD~1 HEAD service/lambda_handler.py | grep -E "(path|httpMethod|def lambda_handler)" > /dev/null; then
+            echo "endpoint_changed=true" >> $GITHUB_OUTPUT
+            echo "📦 Endpoint changes detected in lambda_handler.py"
+          else
+            echo "endpoint_changed=false" >> $GITHUB_OUTPUT
+            echo "✅ No endpoint changes detected"
+          fi
 
-#      # ----------------------
-#      # OUTPUT API URL
-#      # ----------------------
-#      - name: Output API URL
-#        run: |
-#          STACK_NAME="${ENV}-jsvm-${SERVICE_NAME}"
-#
-#          API_URL=$(aws cloudformation describe-stacks \
-#            --stack-name $STACK_NAME \
-#            --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" \
-#            --output text)
-#
-#          echo "API_URL=$API_URL" >> $GITHUB_ENV
-#          echo "🚀 API URL: $API_URL"
+      # ----------------------
+      # DEPLOY API GATEWAY (WHEN ENDPOINTS CHANGE)
+      # ----------------------
+      - name: Deploy API Gateway Stack
+        if: steps.check_endpoints.outputs.endpoint_changed == 'true'
+        run: |
+          STACK_NAME="${ENV}-jsvm-${SERVICE_NAME}"
+
+          aws cloudformation deploy \
+            --template-file cft/api-gateway-cft.yml \
+            --stack-name $STACK_NAME \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides \
+              ServiceName=${SERVICE_NAME} \
+              Environment=${ENV} \
+              CodeBucket=${CODE_BUCKET} \
+              CodeKey=${CODE_KEY}
+
+          echo "🚀 API Gateway stack deployed"
+
+      # ----------------------
+      # OUTPUT API URL
+      # ----------------------
+      - name: Get API URL
+        if: steps.check_endpoints.outputs.endpoint_changed == 'true'
+        id: get_api_url
+        run: |
+          STACK_NAME="${ENV}-jsvm-${SERVICE_NAME}"
+
+          API_URL=$(aws cloudformation describe-stacks \
+            --stack-name $STACK_NAME \
+            --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" \
+            --output text)
+
+          echo "API_URL=$API_URL" >> $GITHUB_ENV
+          echo "api_url=$API_URL" >> $GITHUB_OUTPUT
+          echo "🌐 API URL: $API_URL"
 
       # ----------------------
       # SUMMARY
       # ----------------------
-      - name: Summary
+      - name: Deployment Summary
         run: |
-          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
-#          echo "**Service:** $SERVICE_NAME" >> $GITHUB_STEP_SUMMARY
-#          echo "**Environment:** $ENV" >> $GITHUB_STEP_SUMMARY
-#          echo "**Lambda:** Updated from code/**" >> $GITHUB_STEP_SUMMARY
-#          echo "**API URL:** $API_URL" >> $GITHUB_STEP_SUMMARY
+          echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Service Information" >> $GITHUB_STEP_SUMMARY
+          echo "- **Service:** ${{ env.SERVICE_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment:** ${{ env.ENV }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Region:** ${{ env.AWS_REGION }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Trigger Information" >> $GITHUB_STEP_SUMMARY
+          echo "- **Trigger Type:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "- **Triggered By:** Manual (via GitHub UI)" >> $GITHUB_STEP_SUMMARY
+            echo "- **Force API Gateway:** ${{ github.event.inputs.force_api_gateway_deploy }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Triggered By:** Code Push" >> $GITHUB_STEP_SUMMARY
+            echo "- **Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Deployment Status" >> $GITHUB_STEP_SUMMARY
+          echo "- **Lambda:** ✅ Updated" >> $GITHUB_STEP_SUMMARY
+          echo "- **Endpoint Changes:** ${{ steps.check_endpoints.outputs.endpoint_changed }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.check_endpoints.outputs.endpoint_changed }}" == "true" ]; then
+            echo "- **API Gateway:** ✅ Deployed" >> $GITHUB_STEP_SUMMARY
+            echo "- **API URL:** ${{ steps.get_api_url.outputs.api_url }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **API Gateway:** ⏭️ Skipped (no endpoint changes)" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Code & Commit" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
+            echo "- **Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "- **Repository:** ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Run ID:** ${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
