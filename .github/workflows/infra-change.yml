@@ -1,4 +1,4 @@
-name: Deploys New Service (CFT changes)
+name: Deploy New Service (CFT changes)
 
 on:
   push:
