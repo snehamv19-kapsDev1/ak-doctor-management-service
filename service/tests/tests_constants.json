@@ -1,0 +1,57 @@
+{
+  "DATABASE_BUCKET": "test-bucket",
+  "DATABASE_KEY": "doctors.json",
+  "AWS_REGION": "us-east-1",
+  "TEST_DATA": {
+    "sample_doctor": {
+      "id": "1",
+      "name": "Dr. Smith",
+      "specialization": "Cardiology"
+    },
+    "sample_doctors": [
+      {
+        "id": "1",
+        "name": "Dr. Smith",
+        "specialization": "Cardiology"
+      },
+      {
+        "id": "2",
+        "name": "Dr. Johnson",
+        "specialization": "Neurology"
+      }
+    ],
+    "new_doctor": {
+      "name": "Dr. Brown",
+      "specialization": "Dermatology"
+    },
+    "update_doctor": {
+      "name": "Dr. Smith Updated",
+      "specialization": "Cardiology Updated"
+    },
+    "partial_update": {
+      "name": "Dr. Smith Updated"
+    }
+  },
+  "HTTP_METHODS": {
+    "GET": "GET",
+    "POST": "POST",
+    "PUT": "PUT",
+    "DELETE": "DELETE"
+  },
+  "HTTP_STATUS": {
+    "OK": 200,
+    "CREATED": 201,
+    "BAD_REQUEST": 400,
+    "NOT_FOUND": 404,
+    "INTERNAL_ERROR": 500
+  },
+  "ERROR_MESSAGES": {
+    "DOCTOR_NOT_FOUND": "Doctor not found",
+    "ROUTE_NOT_FOUND": "Routes not found",
+    "NAME_REQUIRED": "name is required",
+    "SPECIALIZATION_REQUIRED": "specialization is required",
+    "NAME_CANNOT_BE_EMPTY": "name cannot be empty",
+    "SPECIALIZATION_CANNOT_BE_EMPTY": "specialization cannot be empty",
+    "REQUEST_BODY_REQUIRED": "request body required"
+  }
+}

@@ -4,14 +4,21 @@ import uuid
 import boto3
 import pytest
 from moto import mock_aws
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from ..lambda_handler import lambda_handler
+
+# Load test constants
+with open(os.path.join(os.path.dirname(__file__), 'tests_constants.json'), 'r') as f:
+    CONSTANTS = json.load(f)
 
 
 @pytest.fixture(autouse=True)
 def setup_env():
-    bucket_name = f"test-bucket-{uuid.uuid4().hex[:8]}"
+    bucket_name = f"{CONSTANTS['DATABASE_BUCKET']}-{uuid.uuid4().hex[:8]}"
     os.environ["DATABASE_BUCKET"] = bucket_name
-    os.environ["DATABASE_KEY"] = "doctors.json"
+    os.environ["DATABASE_KEY"] = CONSTANTS['DATABASE_KEY']
     return bucket_name
 
 
@@ -336,7 +343,7 @@ def test_route_not_found(setup_env):
     }
     res = lambda_handler(event, None)
     assert res["statusCode"] == 404
-    assert json.loads(res["body"]) == {"message": "Route not found"}
+    assert json.loads(res["body"]) == {"message": CONSTANTS['ERROR_MESSAGES']['ROUTE_NOT_FOUND']}
 
 
 @mock_aws

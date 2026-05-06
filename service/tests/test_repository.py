@@ -3,19 +3,25 @@ import os
 import boto3
 import pytest
 from moto import mock_aws
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from ..repository import S3Repository
+
+# Load test constants
+with open(os.path.join(os.path.dirname(__file__), 'tests_constants.json'), 'r') as f:
+    CONSTANTS = json.load(f)
 
 
 @mock_aws
 def test_repository_read_empty():
     """Test reading from an empty/non-existent S3 object"""
     # Setup
-    bucket_name = "test-bucket"
-    key = "doctors.json"
+    bucket_name = CONSTANTS['DATABASE_BUCKET']
+    key = CONSTANTS['DATABASE_KEY']
     os.environ["DATABASE_BUCKET"] = bucket_name
     os.environ["DATABASE_KEY"] = key
 
-    s3 = boto3.client("s3", region_name="us-east-1")
+    s3 = boto3.client("s3", region_name=CONSTANTS['AWS_REGION'])
     s3.create_bucket(Bucket=bucket_name)
 
     # Test
@@ -33,18 +39,15 @@ def test_repository_read_empty():
 def test_repository_read_with_data():
     """Test reading from S3 object with existing data"""
     # Setup
-    bucket_name = "test-bucket"
-    key = "doctors.json"
+    bucket_name = CONSTANTS['DATABASE_BUCKET']
+    key = CONSTANTS['DATABASE_KEY']
     os.environ["DATABASE_BUCKET"] = bucket_name
     os.environ["DATABASE_KEY"] = key
 
-    s3 = boto3.client("s3", region_name="us-east-1")
+    s3 = boto3.client("s3", region_name=CONSTANTS['AWS_REGION'])
     s3.create_bucket(Bucket=bucket_name)
 
-    test_data = [
-        {"id": "1", "name": "Dr. Smith", "specialization": "Cardiology"},
-        {"id": "2", "name": "Dr. Johnson", "specialization": "Neurology"}
-    ]
+    test_data = CONSTANTS['TEST_DATA']['sample_doctors']
     s3.put_object(Bucket=bucket_name, Key=key, Body=json.dumps(test_data))
 
     # Test
@@ -62,19 +65,17 @@ def test_repository_read_with_data():
 def test_repository_write():
     """Test writing data to S3"""
     # Setup
-    bucket_name = "test-bucket"
-    key = "doctors.json"
+    bucket_name = CONSTANTS['DATABASE_BUCKET']
+    key = CONSTANTS['DATABASE_KEY']
     os.environ["DATABASE_BUCKET"] = bucket_name
     os.environ["DATABASE_KEY"] = key
 
-    s3 = boto3.client("s3", region_name="us-east-1")
+    s3 = boto3.client("s3", region_name=CONSTANTS['AWS_REGION'])
     s3.create_bucket(Bucket=bucket_name)
 
     # Test
     repo = S3Repository()
-    test_data = [
-        {"id": "1", "name": "Dr. Smith", "specialization": "Cardiology"}
-    ]
+    test_data = [CONSTANTS['TEST_DATA']['sample_doctor']]
     repo.write(test_data)
 
     # Verify
@@ -101,12 +102,12 @@ def test_repository_init_missing_bucket():
 def test_repository_round_trip():
     """Test reading and writing data in sequence"""
     # Setup
-    bucket_name = "test-bucket"
-    key = "doctors.json"
+    bucket_name = CONSTANTS['DATABASE_BUCKET']
+    key = CONSTANTS['DATABASE_KEY']
     os.environ["DATABASE_BUCKET"] = bucket_name
     os.environ["DATABASE_KEY"] = key
 
-    s3 = boto3.client("s3", region_name="us-east-1")
+    s3 = boto3.client("s3", region_name=CONSTANTS['AWS_REGION'])
     s3.create_bucket(Bucket=bucket_name)
 
     # Test
@@ -116,17 +117,14 @@ def test_repository_round_trip():
     assert repo.read() == []
 
     # Write data
-    test_data = [{"id": "1", "name": "Dr. Test", "specialization": "Testology"}]
+    test_data = [CONSTANTS['TEST_DATA']['sample_doctor']]
     repo.write(test_data)
 
     # Read back
     assert repo.read() == test_data
 
     # Write more data
-    updated_data = [
-        {"id": "1", "name": "Dr. Test", "specialization": "Testology"},
-        {"id": "2", "name": "Dr. Updated", "specialization": "Updatedology"}
-    ]
+    updated_data = CONSTANTS['TEST_DATA']['sample_doctors']
     repo.write(updated_data)
 
     # Read back updated data
