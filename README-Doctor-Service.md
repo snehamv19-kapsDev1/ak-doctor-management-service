@@ -10,6 +10,7 @@ A comprehensive AWS Lambda-based REST API service for managing doctor informatio
 - [Data Model](#data-model)
 - [Setup & Deployment](#setup--deployment)
 - [Environment Variables](#environment-variables)
+- [Usage Examples](#usage-examples)
 - [Testing](#testing)
 - [Project Structure](#project-structure)
 - [Error Handling](#error-handling)
@@ -29,26 +30,93 @@ The Doctor Management Service provides a complete CRUD (Create, Read, Update, De
 - ✅ **UUID-based IDs** - Unique identifier generation for doctors
 - ✅ **Comprehensive Testing** - 27 test cases with full coverage
 
+### Quick API Reference
+
+| Method | Endpoint | Description | Status |
+|--------|----------|-------------|--------|
+| `GET` | `/doctors` | Get all doctors | 200 |
+| `GET` | `/doctors/{id}` | Get doctor by ID | 200/404 |
+| `POST` | `/doctors` | Create new doctor | 201/400 |
+| `PUT` | `/doctors/{id}` | Update doctor | 200/400/404 |
+| `DELETE` | `/doctors/{id}` | Delete doctor | 200/404 |
+
 ## 🏗️ Architecture
 
+### System Design Diagram
+
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   AWS API       │────│   AWS Lambda    │────│  Service Logic  │
-│   Gateway       │    │   Handler       │    │                 │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                                │                       │
-                                │                       │
-                                ▼                       ▼
-                       ┌─────────────────┐    ┌─────────────────┐
-                       │   Validation    │    │   Repository    │
-                       │                 │    │   (S3-based)    │
-                       └─────────────────┘    └─────────────────┘
-                                                │
-                                                ▼
-                                       ┌─────────────────┐
-                                       │   AWS S3        │
-                                       │   Bucket        │
-                                       └─────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                       HTTP Request                              │
+│                   (API Gateway / Client)                        │
+└─────────────────────┬────────────────────────────────────────────┘
+                      │
+                      ▼
+       ┌──────────────────────────────────────┐
+       │     AWS Lambda (lambda_handler)      │
+       │                                      │
+       │  ┌────────────────────────────────┐ │
+       │  │  Request Routing               │ │
+       │  │  - GET /doctors                │ │
+       │  │  - GET /doctors/{id}           │ │
+       │  │  - POST /doctors               │ │
+       │  │  - PUT /doctors/{id}           │ │
+       │  │  - DELETE /doctors/{id}        │ │
+       │  └────────────────────────────────┘ │
+       └─────────────┬──────────────────────────┘
+                     │
+                     ▼
+       ┌──────────────────────────────────────┐
+       │    Service Logic Layer               │
+       │  (ServiceLogic.py)                   │
+       │                                      │
+       │  ├─ get_all_doctors()               │
+       │  ├─ get_doctor_by_id()              │
+       │  ├─ create_doctor()                 │
+       │  ├─ update_doctor()                 │
+       │  └─ delete_doctor()                 │
+       └──────────────┬───────────────────────┘
+                      │
+       ┌──────────────┴──────────────┐
+       │                             │
+       ▼                             ▼
+┌──────────────────┐      ┌──────────────────┐
+│  Validation      │      │  Response        │
+│  (Validation.py) │      │  (Response.py)   │
+│                  │      │                  │
+│  ├─ validate_... │      │  ├─ response()   │
+│  └─ check_...    │      │  └─ error()      │
+└──────────────────┘      └──────────────────┘
+       │                             │
+       └──────────────┬──────────────┘
+                      │
+                      ▼
+       ┌──────────────────────────────────────┐
+       │  Repository Layer                    │
+       │  (repository.py)                     │
+       │                                      │
+       │  ┌────────────────────────────────┐ │
+       │  │  S3Repository                  │ │
+       │  │  - read()                      │ │
+       │  │  - write()                     │ │
+       │  └────────────────────────────────┘ │
+       └──────────────┬───────────────────────┘
+                      │
+                      ▼
+       ┌──────────────────────────────────────┐
+       │        AWS S3 Bucket                 │
+       │                                      │
+       │  ┌────────────────────────────────┐ │
+       │  │  doctors.json                  │ │
+       │  │                                │ │
+       │  │  [                             │ │
+       │  │    {                           │ │
+       │  │      "id": "uuid",             │ │
+       │  │      "name": "Dr. Smith",      │ │
+       │  │      "specialization": "..."   │ │
+       │  │    }                           │ │
+       │  │  ]                             │ │
+       │  └────────────────────────────────┘ │
+       └──────────────────────────────────────┘
 ```
 
 ### Component Description
@@ -300,6 +368,20 @@ https://your-api-gateway-url/prod
 - **Integration tests** for API endpoints
 - **Error handling tests** for edge cases
 
+### Test Results Summary
+
+| Category | Tests | Status |
+|----------|-------|--------|
+| **GET Operations** | 4 | ✅ Passed |
+| **POST Operations** | 4 | ✅ Passed |
+| **PUT Operations** | 4 | ✅ Passed |
+| **DELETE Operations** | 2 | ✅ Passed |
+| **Error Scenarios** | 2 | ✅ Passed |
+| **Repository Layer** | 5 | ✅ Passed |
+| **Validation Layer** | 3 | ✅ Passed |
+| **Service Logic** | 3 | ✅ Passed |
+| **TOTAL** | **27** | **✅ ALL PASSED** |
+
 ### Running Tests
 
 ```bash
@@ -309,52 +391,69 @@ python -m pytest service/tests/ -v
 # Run specific test file
 python -m pytest service/tests/test_lambda_handler.py -v
 
-# Run with coverage
+# Run with coverage report
 python -m pytest service/tests/ --cov=service --cov-report=html
+
+# Run tests with detailed output
+python -m pytest service/tests/ -vv --tb=short
 ```
 
 ### Test Categories
 
-1. **API Endpoint Tests** (`test_lambda_handler.py`)
-   - All CRUD operations
-   - Error scenarios
-   - Edge cases
+1. **API Endpoint Tests** (`test_lambda_handler.py` - 16 tests)
+   - ✅ GET /doctors (all doctors)
+   - ✅ GET /doctors/{id} (single doctor)
+   - ✅ POST /doctors (create)
+   - ✅ PUT /doctors/{id} (update)
+   - ✅ DELETE /doctors/{id} (delete)
+   - ✅ Invalid routes
+   - ✅ Malformed requests
 
-2. **Repository Tests** (`test_repository.py`)
-   - S3 read/write operations
-   - Error handling
-   - Data serialization
+2. **Repository Tests** (`test_repository.py` - 5 tests)
+   - ✅ Read empty S3 objects
+   - ✅ Read existing data
+   - ✅ Write data to S3
+   - ✅ Error handling (missing bucket)
+   - ✅ Round-trip read/write operations
 
-3. **Validation Tests** (`test_validation.py`)
-   - Input validation logic
-   - Error message generation
+3. **Validation Tests** (`test_validation.py` - 3 tests)
+   - ✅ Create validation
+   - ✅ Update validation
+   - ✅ Error message generation
 
-4. **Service Logic Tests** (`test_service_logic.py`)
-   - Business logic validation
-   - Integration testing
+4. **Service Logic Tests** (`test_service_logic.py` - 3 tests)
+   - ✅ POST create integration
+   - ✅ GET all integration
+   - ✅ Route handling
 
 ## 📁 Project Structure
 
 ```
 ak-doctor-management-service/
 ├── service/
-│   ├── lambda_handler.py      # AWS Lambda entry point
-│   ├── ServiceLogic.py        # Business logic layer
-│   ├── repository.py          # Data persistence layer
-│   ├── Validation.py          # Input validation
-│   ├── Response.py            # Response formatting
+│   ├── lambda_handler.py           # AWS Lambda entry point
+│   ├── ServiceLogic.py             # Business logic layer (CRUD operations)
+│   ├── repository.py               # Data persistence layer (S3 integration)
+│   ├── Validation.py               # Input validation
+│   ├── Response.py                 # Response formatting utility
 │   └── tests/
-│       ├── test_lambda_handler.py
-│       ├── test_repository.py
-│       ├── test_service_logic.py
-│       └── test_validation.py
+│       ├── test_lambda_handler.py   # 16 comprehensive API tests
+│       ├── test_repository.py       # 5 repository layer tests
+│       ├── test_service_logic.py    # 3 service logic tests
+│       └── test_validation.py       # 3 validation tests
 ├── cft/
 │   └── cft-doctor-service-infra.yaml  # CloudFormation template
-├── requirements.txt           # Python dependencies
-├── local_server.py           # Local development server
-├── ReadMe                     # Basic readme
-└── README-Doctor-Service.md   # This file
+├── requirements.txt                   # Python dependencies
+├── local_server.py                    # Local development server
+├── ReadMe                             # Basic readme
+└── README-Doctor-Service.md           # This comprehensive documentation
 ```
+
+### Total Test Coverage: 27 Tests ✅
+- API Endpoints: 16 tests
+- Repository Layer: 5 tests
+- Service Logic: 3 tests
+- Validation: 3 tests
 
 
 ## ⚠️ Error Handling
@@ -410,6 +509,86 @@ or
 - UUID generation for new records
 - JSON serialization for S3 storage
 
+## 💻 Usage Examples
+
+### Python Example
+
+```python
+import requests
+import json
+
+BASE_URL = "https://your-api-gateway.amazonaws.com"
+
+# 1. Create a doctor
+def create_doctor():
+    url = f"{BASE_URL}/doctors"
+    payload = {
+        "name": "Dr. Lisa Chen",
+        "specialization": "Dermatology"
+    }
+    response = requests.post(url, json=payload)
+    print(response.json())
+    return response.json()["id"]
+
+# 2. Get all doctors
+def get_all_doctors():
+    url = f"{BASE_URL}/doctors"
+    response = requests.get(url)
+    print(response.json())
+
+# 3. Get specific doctor
+def get_doctor(doctor_id):
+    url = f"{BASE_URL}/doctors/{doctor_id}"
+    response = requests.get(url)
+    print(response.json())
+
+# 4. Update doctor
+def update_doctor(doctor_id):
+    url = f"{BASE_URL}/doctors/{doctor_id}"
+    payload = {
+        "specialization": "Clinical Dermatology"
+    }
+    response = requests.put(url, json=payload)
+    print(response.json())
+
+# 5. Delete doctor
+def delete_doctor(doctor_id):
+    url = f"{BASE_URL}/doctors/{doctor_id}"
+    response = requests.delete(url)
+    print(response.json())
+
+# Usage
+doctor_id = create_doctor()
+get_all_doctors()
+get_doctor(doctor_id)
+update_doctor(doctor_id)
+delete_doctor(doctor_id)
+```
+
+### cURL Examples
+
+```bash
+# Create doctor
+curl -X POST https://your-api/doctors \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Dr. Lisa Chen", "specialization": "Dermatology"}'
+
+# Get all doctors
+curl -X GET https://your-api/doctors
+
+# Get specific doctor
+curl -X GET https://your-api/doctors/550e8400-e29b-41d4-a716-446655440000
+
+# Update doctor
+curl -X PUT https://your-api/doctors/550e8400-e29b-41d4-a716-446655440000 \
+  -H "Content-Type: application/json" \
+  -d '{"specialization": "Clinical Dermatology"}'
+
+# Delete doctor
+curl -X DELETE https://your-api/doctors/550e8400-e29b-41d4-a716-446655440000
+```
+
+
 ## 🔒 Security Considerations
 
 - Input validation prevents injection attacks
@@ -438,7 +617,8 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ---
 
-**Last Updated:** May 4, 2026
+**Last Updated:** May 6, 2026
 **Version:** 1.0.0
-**Status:** ✅ Production Ready</content>
+**Status:** ✅ Production Ready
+**All Tests:** ✅ 27/27 Passing</content>
 <parameter name="filePath">/Users/sneha/KAPS/jsvm-backend/ak-doctor-management-service/README-Doctor-Service.md
