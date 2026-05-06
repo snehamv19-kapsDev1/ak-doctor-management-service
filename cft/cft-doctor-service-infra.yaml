@@ -58,6 +58,9 @@ Resources:
                 Resource:
                   - !Sub arn:aws:s3:::${CodeBucket}
                   - !Sub arn:aws:s3:::${CodeBucket}/*
+                  # Database bucket (FIX)
+                  - !Sub arn:aws:s3:::${DatabaseBucket}
+                  - !Sub arn:aws:s3:::${DatabaseBucket}/*
 
 # =========================================================
 # LAMBDA FUNCTION (ZIP FROM S3)
