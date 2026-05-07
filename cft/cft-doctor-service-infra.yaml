@@ -1,10 +1,13 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Doctor Service REST APIs (Lambda + API Gateway + CloudWatch + S3 JSON DB)
+Description: Doctor Service REST APIs (Lambda + API Gateway + S3 JSON DB)
 
 Parameters:
   Environment:
     Type: String
-    AllowedValues: [dev, test, prod]
+    AllowedValues:
+      - dev
+      - test
+      - prod
 
   ServiceName:
     Type: String
@@ -28,23 +31,30 @@ Resources:
 # =========================================================
   LambdaExecutionRole:
     Type: AWS::IAM::Role
+
     Properties:
       RoleName: !Sub "${Environment}-${ServiceName}-lambda-role"
 
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
+
         Statement:
           - Effect: Allow
             Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
 
       Policies:
         - PolicyName: lambda-s3-access
+
           PolicyDocument:
-            Version: '2012-10-17'
+            Version: "2012-10-17"
 
             Statement:
+
+              # CloudWatch Logs
               - Effect: Allow
                 Action:
                   - logs:CreateLogGroup
@@ -52,32 +62,23 @@ Resources:
                   - logs:PutLogEvents
                 Resource: "*"
 
+              # S3 Access
               - Effect: Allow
                 Action:
                   - s3:GetObject
                   - s3:PutObject
                   - s3:ListBucket
                 Resource:
-                  - !Sub arn:aws:s3:::${CodeBucket}
-                  - !Sub arn:aws:s3:::${CodeBucket}/*
-                  - !Sub arn:aws:s3:::${DatabaseBucket}
-                  - !Sub arn:aws:s3:::${DatabaseBucket}/*
-
-# =========================================================
-# LOG GROUP
-# =========================================================
-  LambdaLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub "/aws/lambda/${Environment}-jsvm-${ServiceName}-lambda"
-      RetentionInDays: 14
+                  - !Sub "arn:aws:s3:::${CodeBucket}"
+                  - !Sub "arn:aws:s3:::${CodeBucket}/*"
+                  - !Sub "arn:aws:s3:::${DatabaseBucket}"
+                  - !Sub "arn:aws:s3:::${DatabaseBucket}/*"
 
 # =========================================================
 # LAMBDA FUNCTION
 # =========================================================
   DoctorServiceFunction:
     Type: AWS::Lambda::Function
-    DependsOn: LambdaLogGroup
 
     Properties:
       FunctionName: !Sub "${Environment}-jsvm-${ServiceName}-lambda"
@@ -86,6 +87,7 @@ Resources:
       Handler: lambda_handler.lambda_handler
       Role: !GetAtt LambdaExecutionRole.Arn
       Timeout: 20
+      MemorySize: 256
 
       Code:
         S3Bucket: !Ref CodeBucket
@@ -101,16 +103,18 @@ Resources:
 # =========================================================
   Api:
     Type: AWS::ApiGateway::RestApi
+
     Properties:
       Name: !Sub "${Environment}-${ServiceName}-api"
 
 # =========================================================
-# RESOURCES
+# API RESOURCES
 # =========================================================
 
   # /doctors
   DoctorsResource:
     Type: AWS::ApiGateway::Resource
+
     Properties:
       RestApiId: !Ref Api
       ParentId: !GetAtt Api.RootResourceId
@@ -119,6 +123,7 @@ Resources:
   # /doctors/{id}
   DoctorByIdResource:
     Type: AWS::ApiGateway::Resource
+
     Properties:
       RestApiId: !Ref Api
       ParentId: !Ref DoctorsResource
@@ -129,6 +134,7 @@ Resources:
 # =========================================================
   GetDoctorsMethod:
     Type: AWS::ApiGateway::Method
+
     Properties:
       RestApiId: !Ref Api
       ResourceId: !Ref DoctorsResource
@@ -138,6 +144,7 @@ Resources:
       Integration:
         Type: AWS_PROXY
         IntegrationHttpMethod: POST
+
         Uri: !Sub >
           arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DoctorServiceFunction.Arn}/invocations
 
@@ -146,6 +153,7 @@ Resources:
 # =========================================================
   CreateDoctorMethod:
     Type: AWS::ApiGateway::Method
+
     Properties:
       RestApiId: !Ref Api
       ResourceId: !Ref DoctorsResource
@@ -215,22 +223,26 @@ Resources:
       Integration:
         Type: AWS_PROXY
         IntegrationHttpMethod: POST
+
         Uri: !Sub >
           arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DoctorServiceFunction.Arn}/invocations
 
 # =========================================================
-# LAMBDA PERMISSION
+# LAMBDA PERMISSION FOR API GATEWAY
 # =========================================================
   LambdaPermission:
     Type: AWS::Lambda::Permission
+
     Properties:
       FunctionName: !Ref DoctorServiceFunction
       Action: lambda:InvokeFunction
       Principal: apigateway.amazonaws.com
-      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${Api}/*/*/*
+
+      SourceArn: !Sub >
+        arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${Api}/*/*/*
 
 # =========================================================
-# DEPLOYMENT
+# API DEPLOYMENT
 # =========================================================
   Deployment:
     Type: AWS::ApiGateway::Deployment
@@ -246,16 +258,25 @@ Resources:
       RestApiId: !Ref Api
       StageName: !Ref Environment
 
-# =====================================================================================================================
+# =========================================================
 # OUTPUTS
-# =====================================================================================================================
+# =========================================================
 Outputs:
+
   ApiUrl:
     Description: Base API URL
-    Value: !Sub "https://${Api}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
+
+    Value: !Sub >
+      https://${Api}.execute-api.${AWS::Region}.amazonaws.com/${Environment}
 
   DoctorsEndpoint:
-    Value: !Sub "https://${Api}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/doctors"
+    Description: Doctors Collection Endpoint
+
+    Value: !Sub >
+      https://${Api}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/doctors
 
   DoctorByIdEndpoint:
-    Value: !Sub "https://${Api}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/doctors/{id}"
+    Description: Doctor By ID Endpoint
+
+    Value: !Sub >
+      https://${Api}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/doctors/{id}
