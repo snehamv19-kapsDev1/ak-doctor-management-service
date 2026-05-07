@@ -1,13 +1,10 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Doctor Service REST APIs (Lambda + API Gateway + S3 JSON DB + S3 BACKEND APIS JSON FILE )
+Description: Doctor Service REST APIs (Lambda + API Gateway + S3 JSON DB + S3 BACKEND APIS JSON FILE)
 
 Parameters:
   Environment:
     Type: String
-    AllowedValues:
-      - dev
-      - test
-      - prod
+    AllowedValues: [dev, test, prod]
 
   ServiceName:
     Type: String
@@ -31,28 +28,20 @@ Resources:
 # =========================================================
   LambdaExecutionRole:
     Type: AWS::IAM::Role
-
     Properties:
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
-
         Statement:
           - Effect: Allow
             Principal:
-              Service:
-                - lambda.amazonaws.com
-            Action:
-              - sts:AssumeRole
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
 
       Policies:
         - PolicyName: lambda-s3-access
-
           PolicyDocument:
             Version: "2012-10-17"
-
             Statement:
-
-              # CloudWatch Logs
               - Effect: Allow
                 Action:
                   - logs:CreateLogGroup
@@ -60,7 +49,6 @@ Resources:
                   - logs:PutLogEvents
                 Resource: "*"
 
-              # S3 Access
               - Effect: Allow
                 Action:
                   - s3:GetObject
@@ -77,7 +65,6 @@ Resources:
 # =========================================================
   DoctorServiceFunction:
     Type: AWS::Lambda::Function
-
     Properties:
       Runtime: python3.11
       Handler: lambda_handler.lambda_handler
@@ -99,44 +86,63 @@ Resources:
 # =========================================================
   Api:
     Type: AWS::ApiGateway::RestApi
-
     Properties:
       Name: !Sub "${Environment}-${ServiceName}-api"
 
 # =========================================================
-# API RESOURCES
+# RESOURCES
 # =========================================================
-
-  # /doctors
   DoctorsResource:
     Type: AWS::ApiGateway::Resource
-
     Properties:
       RestApiId: !Ref Api
       ParentId: !GetAtt Api.RootResourceId
       PathPart: doctors
 
-  # /doctors/{id}
   DoctorByIdResource:
     Type: AWS::ApiGateway::Resource
-
     Properties:
       RestApiId: !Ref Api
       ParentId: !Ref DoctorsResource
       PathPart: "{id}"
 
 # =========================================================
+# CORS (IMPORTANT FIX)
+# =========================================================
+  DoctorsOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref DoctorsResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'http://localhost:5173'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'*'"
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Headers: true
+
+# =========================================================
 # GET /doctors
 # =========================================================
   GetDoctorsMethod:
     Type: AWS::ApiGateway::Method
-
     Properties:
       RestApiId: !Ref Api
       ResourceId: !Ref DoctorsResource
       HttpMethod: GET
       AuthorizationType: NONE
-
       Integration:
         Type: AWS_PROXY
         IntegrationHttpMethod: POST
@@ -147,13 +153,11 @@ Resources:
 # =========================================================
   CreateDoctorMethod:
     Type: AWS::ApiGateway::Method
-
     Properties:
       RestApiId: !Ref Api
       ResourceId: !Ref DoctorsResource
       HttpMethod: POST
       AuthorizationType: NONE
-
       Integration:
         Type: AWS_PROXY
         IntegrationHttpMethod: POST
@@ -164,16 +168,13 @@ Resources:
 # =========================================================
   GetDoctorByIdMethod:
     Type: AWS::ApiGateway::Method
-
     Properties:
       RestApiId: !Ref Api
       ResourceId: !Ref DoctorByIdResource
       HttpMethod: GET
       AuthorizationType: NONE
-
       RequestParameters:
         method.request.path.id: true
-
       Integration:
         Type: AWS_PROXY
         IntegrationHttpMethod: POST
@@ -184,16 +185,13 @@ Resources:
 # =========================================================
   UpdateDoctorMethod:
     Type: AWS::ApiGateway::Method
-
     Properties:
       RestApiId: !Ref Api
       ResourceId: !Ref DoctorByIdResource
       HttpMethod: PUT
       AuthorizationType: NONE
-
       RequestParameters:
         method.request.path.id: true
-
       Integration:
         Type: AWS_PROXY
         IntegrationHttpMethod: POST
@@ -204,27 +202,23 @@ Resources:
 # =========================================================
   DeleteDoctorMethod:
     Type: AWS::ApiGateway::Method
-
     Properties:
       RestApiId: !Ref Api
       ResourceId: !Ref DoctorByIdResource
       HttpMethod: DELETE
       AuthorizationType: NONE
-
       RequestParameters:
         method.request.path.id: true
-
       Integration:
         Type: AWS_PROXY
         IntegrationHttpMethod: POST
         Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DoctorServiceFunction.Arn}/invocations"
 
 # =========================================================
-# LAMBDA PERMISSION FOR API GATEWAY
+# LAMBDA PERMISSION
 # =========================================================
   LambdaPermission:
     Type: AWS::Lambda::Permission
-
     Properties:
       FunctionName: !Ref DoctorServiceFunction
       Action: lambda:InvokeFunction
@@ -232,18 +226,17 @@ Resources:
       SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${Api}/*/*/*"
 
 # =========================================================
-# API DEPLOYMENT
+# DEPLOYMENT
 # =========================================================
   Deployment:
     Type: AWS::ApiGateway::Deployment
-
     DependsOn:
       - GetDoctorsMethod
       - CreateDoctorMethod
       - GetDoctorByIdMethod
       - UpdateDoctorMethod
       - DeleteDoctorMethod
-
+      - DoctorsOptionsMethod
     Properties:
       RestApiId: !Ref Api
       StageName: !Ref Environment
@@ -252,15 +245,11 @@ Resources:
 # OUTPUTS
 # =========================================================
 Outputs:
-
   ApiUrl:
-    Description: Base API URL
     Value: !Sub "https://${Api}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
 
   DoctorsEndpoint:
-    Description: Doctors Collection Endpoint
     Value: !Sub "https://${Api}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/doctors"
 
   DoctorByIdEndpoint:
-    Description: Doctor By ID Endpoint
     Value: !Sub "https://${Api}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/doctors/{id}"
