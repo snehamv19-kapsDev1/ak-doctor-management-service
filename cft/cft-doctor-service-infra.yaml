@@ -30,6 +30,7 @@ Resources:
     Type: AWS::IAM::Role
     Properties:
       RoleName: !Sub "${Environment}-${ServiceName}-lambda-role"
+
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -42,6 +43,7 @@ Resources:
         - PolicyName: lambda-s3-access
           PolicyDocument:
             Version: '2012-10-17'
+
             Statement:
               - Effect: Allow
                 Action:
@@ -58,18 +60,28 @@ Resources:
                 Resource:
                   - !Sub arn:aws:s3:::${CodeBucket}
                   - !Sub arn:aws:s3:::${CodeBucket}/*
-                  # Database bucket (FIX)
                   - !Sub arn:aws:s3:::${DatabaseBucket}
                   - !Sub arn:aws:s3:::${DatabaseBucket}/*
 
 # =========================================================
-# LAMBDA FUNCTION (ZIP FROM S3)
+# LOG GROUP
+# =========================================================
+  LambdaLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${Environment}-jsvm-${ServiceName}-lambda"
+      RetentionInDays: 14
+
+# =========================================================
+# LAMBDA FUNCTION
 # =========================================================
   DoctorServiceFunction:
     Type: AWS::Lambda::Function
     DependsOn: LambdaLogGroup
+
     Properties:
       FunctionName: !Sub "${Environment}-jsvm-${ServiceName}-lambda"
+
       Runtime: python3.11
       Handler: lambda_handler.lambda_handler
       Role: !GetAtt LambdaExecutionRole.Arn
@@ -92,65 +104,125 @@ Resources:
     Properties:
       Name: !Sub "${Environment}-${ServiceName}-api"
 
-  Items:
+# =========================================================
+# RESOURCES
+# =========================================================
+
+  # /doctors
+  DoctorsResource:
     Type: AWS::ApiGateway::Resource
     Properties:
       RestApiId: !Ref Api
       ParentId: !GetAtt Api.RootResourceId
-      PathPart: items
+      PathPart: doctors
 
-  Item:
+  # /doctors/{id}
+  DoctorByIdResource:
     Type: AWS::ApiGateway::Resource
     Properties:
       RestApiId: !Ref Api
-      ParentId: !GetAtt Api.RootResourceId
-      PathPart: item
+      ParentId: !Ref DoctorsResource
+      PathPart: "{id}"
 
 # =========================================================
-# METHODS
+# GET /doctors
 # =========================================================
-  GetItems:
+  GetDoctorsMethod:
     Type: AWS::ApiGateway::Method
-#    DependsOn: LambdaPermission
     Properties:
       RestApiId: !Ref Api
-      ResourceId: !Ref Items
+      ResourceId: !Ref DoctorsResource
       HttpMethod: GET
       AuthorizationType: NONE
+
       Integration:
         Type: AWS_PROXY
         IntegrationHttpMethod: POST
-        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DoctorServiceFunction.Arn}/invocations
-  CreateItem:
+        Uri: !Sub >
+          arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DoctorServiceFunction.Arn}/invocations
+
+# =========================================================
+# POST /doctors
+# =========================================================
+  CreateDoctorMethod:
     Type: AWS::ApiGateway::Method
-#    DependsOn: LambdaPermission
     Properties:
       RestApiId: !Ref Api
-      ResourceId: !Ref Item
+      ResourceId: !Ref DoctorsResource
       HttpMethod: POST
       AuthorizationType: NONE
+
       Integration:
         Type: AWS_PROXY
         IntegrationHttpMethod: POST
-        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DoctorServiceFunction.Arn}/invocations
-
+        Uri: !Sub >
+          arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DoctorServiceFunction.Arn}/invocations
 
 # =========================================================
-# CLOUDWATCH LOG GROUP
+# GET /doctors/{id}
 # =========================================================
-  LambdaLogGroup:
-    Type: AWS::Logs::LogGroup
+  GetDoctorByIdMethod:
+    Type: AWS::ApiGateway::Method
     Properties:
-      LogGroupName: !Sub "/aws/lambda/${Environment}-${ServiceName}"
-      RetentionInDays: 14
+      RestApiId: !Ref Api
+      ResourceId: !Ref DoctorByIdResource
+      HttpMethod: GET
+      AuthorizationType: NONE
 
+      RequestParameters:
+        method.request.path.id: true
+
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub >
+          arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DoctorServiceFunction.Arn}/invocations
 
 # =========================================================
-# PERMISSION
+# PUT /doctors/{id}
+# =========================================================
+  UpdateDoctorMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref DoctorByIdResource
+      HttpMethod: PUT
+      AuthorizationType: NONE
+
+      RequestParameters:
+        method.request.path.id: true
+
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub >
+          arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DoctorServiceFunction.Arn}/invocations
+
+# =========================================================
+# DELETE /doctors/{id}
+# =========================================================
+  DeleteDoctorMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref DoctorByIdResource
+      HttpMethod: DELETE
+      AuthorizationType: NONE
+
+      RequestParameters:
+        method.request.path.id: true
+
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub >
+          arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DoctorServiceFunction.Arn}/invocations
+
+# =========================================================
+# LAMBDA PERMISSION
 # =========================================================
   LambdaPermission:
     Type: AWS::Lambda::Permission
-#    DependsOn: DoctorServiceFunction
     Properties:
       FunctionName: !Ref DoctorServiceFunction
       Action: lambda:InvokeFunction
@@ -158,20 +230,32 @@ Resources:
       SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${Api}/*/*/*
 
 # =========================================================
-# DEPLOYMENT + STAGE
+# DEPLOYMENT
 # =========================================================
   Deployment:
     Type: AWS::ApiGateway::Deployment
+
     DependsOn:
-      - GetItems
-      - CreateItem
+      - GetDoctorsMethod
+      - CreateDoctorMethod
+      - GetDoctorByIdMethod
+      - UpdateDoctorMethod
+      - DeleteDoctorMethod
+
     Properties:
       RestApiId: !Ref Api
       StageName: !Ref Environment
 
-# =========================================================
-# OUTPUT
-# =========================================================
+# =====================================================================================================================
+# OUTPUTS
+# =====================================================================================================================
 Outputs:
   ApiUrl:
+    Description: Base API URL
     Value: !Sub "https://${Api}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
+
+  DoctorsEndpoint:
+    Value: !Sub "https://${Api}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/doctors"
+
+  DoctorByIdEndpoint:
+    Value: !Sub "https://${Api}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/doctors/{id}"
