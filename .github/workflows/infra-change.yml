@@ -167,13 +167,15 @@ jobs:
           echo "API URL: $API_URL"
 
       # ----------------------
-      # GENERATE FRONTEND CONFIG
+      # GENERATE  CONFIG
       # ----------------------
       - name: Generate backend config JSON
         run: |
           mkdir -p config
-          CONFIG_JSON_FILE_NAME= ${ENV}-backendApis.json
-          cat <<EOF > CONFIG_JSON_FILE_NAME
+      
+          CONFIG_FILE="config/backendApis.json"
+      
+          cat > "$CONFIG_FILE" <<EOF
           {
             "environment": "${ENV}",
             "services": {
@@ -185,7 +187,7 @@ jobs:
           EOF
       
           echo "Generated config:"
-          cat CONFIG_JSON_FILE_NAME
+          cat "$CONFIG_FILE"
 
       # ----------------------
       # GET CONFIG BUCKET
