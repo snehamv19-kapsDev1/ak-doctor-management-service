@@ -167,6 +167,41 @@ jobs:
           echo "API URL: $API_URL"
 
       # ----------------------
+      # GENERATE FRONTEND CONFIG
+      # ----------------------
+      - name: Generate backend config JSON
+        run: |
+          mkdir -p config
+          CONFIG_JSON_FILE_NAME= ${ENV}-backendApis.json
+          cat <<EOF > CONFIG_JSON_FILE_NAME
+          {
+            "environment": "${ENV}",
+            "services": {
+              "${SERVICE_NAME}": {
+                "baseUrl": "${API_URL}"
+              }
+            }
+          }
+          EOF
+      
+          echo "Generated config:"
+          cat CONFIG_JSON_FILE_NAME
+
+      # ----------------------
+      # GET CONFIG BUCKET
+      # ----------------------
+      - name: Get Config Bucket
+        run: |
+          CONFIG_BUCKET=$(aws ssm get-parameter \
+            --name "/${ENV}/jsvm/configuration-bucket-name" \
+            --query "Parameter.Value" \
+            --output text)
+      
+          [ -z "$CONFIG_BUCKET" ] && echo "❌ Missing config bucket" && exit 1
+      
+          echo "CONFIG_BUCKET=$CONFIG_BUCKET" >> $GITHUB_ENV
+
+      # ----------------------
       # SUMMARY
       # ----------------------
       - name: Summary
@@ -174,4 +209,5 @@ jobs:
           echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "**Service:** $SERVICE_NAME" >> $GITHUB_STEP_SUMMARY
           echo "**Environment:** $ENV" >> $GITHUB_STEP_SUMMARY
-          echo "**Doctor service URL:** $API_URL" >> $GITHUB_STEP_SUMMARY
+          echo "**API URL:** $API_URL" >> $GITHUB_STEP_SUMMARY
+          echo "**Config File:** s3://$CONFIG_BUCKET/$ENV/backendApis.json" >> $GITHUB_STEP_SUMMARY
