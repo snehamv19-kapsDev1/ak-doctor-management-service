@@ -167,7 +167,7 @@ jobs:
           echo "API URL: $API_URL"
 
       # ----------------------
-      # GENERATE  CONFIG
+      # GENERATE CONFIG JSON
       # ----------------------
       - name: Generate backend config JSON
         run: |
@@ -202,6 +202,19 @@ jobs:
           [ -z "$CONFIG_BUCKET" ] && echo "❌ Missing config bucket" && exit 1
       
           echo "CONFIG_BUCKET=$CONFIG_BUCKET" >> $GITHUB_ENV
+
+      # ----------------------
+      # UPLOAD CONFIG TO S3
+      # ----------------------
+      - name: Upload config to S3
+        run: |
+          CONFIG_KEY="${ENV}/backendApis.json"
+      
+          aws s3 cp config/backendApis.json \
+            s3://$CONFIG_BUCKET/$CONFIG_KEY \
+            --content-type application/json
+      
+          echo "CONFIG_KEY=$CONFIG_KEY" >> $GITHUB_ENV      
 
       # ----------------------
       # SUMMARY
