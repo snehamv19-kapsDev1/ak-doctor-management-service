@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Doctor Service REST APIs (Lambda + API Gateway + S3 JSON DB + S3 BACKEND APIS JSON FILE)
+Description: Doctor Service REST APIs (Lambda + API Gateway + S3 JSON DB)
 
 Parameters:
   Environment:
@@ -65,8 +65,8 @@ Resources:
 # =========================================================
   DoctorServiceFunction:
     Type: AWS::Lambda::Function
-    Name: !Sub "${Environment}-jsvm-${ServiceName}-lambda"
     Properties:
+      FunctionName: !Sub "${Environment}-jsvm-${ServiceName}-lambda"
       Runtime: python3.11
       Handler: lambda_handler.lambda_handler
       Role: !GetAtt LambdaExecutionRole.Arn
@@ -108,7 +108,13 @@ Resources:
       PathPart: "{id}"
 
 # =========================================================
-# CORS (IMPORTANT FIX)
+# COMMON CORS SETTINGS
+# =========================================================
+  CorsHeaders:
+    Type: AWS::CloudFormation::WaitConditionHandle
+
+# =========================================================
+# OPTIONS /doctors
 # =========================================================
   DoctorsOptionsMethod:
     Type: AWS::ApiGateway::Method
@@ -124,9 +130,36 @@ Resources:
         IntegrationResponses:
           - StatusCode: 200
             ResponseParameters:
-              method.response.header.Access-Control-Allow-Origin: "'http://localhost:5173'"
-              method.response.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'"
-              method.response.header.Access-Control-Allow-Headers: "'*'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Headers: true
+
+# =========================================================
+# OPTIONS /doctors/{id}
+# =========================================================
+  DoctorByIdOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref DoctorByIdResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,PUT,DELETE,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
       MethodResponses:
         - StatusCode: 200
           ResponseParameters:
@@ -226,9 +259,9 @@ Resources:
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${Api}/*/*/*"
 
-# ==============================================================================================================================
+# =========================================================
 # DEPLOYMENT
-# ==============================================================================================================================
+# =========================================================
   Deployment:
     Type: AWS::ApiGateway::Deployment
     DependsOn:
@@ -238,13 +271,14 @@ Resources:
       - UpdateDoctorMethod
       - DeleteDoctorMethod
       - DoctorsOptionsMethod
+      - DoctorByIdOptionsMethod
     Properties:
       RestApiId: !Ref Api
       StageName: !Ref Environment
 
-# =====================================================================================================================
+# =========================================================
 # OUTPUTS
-# =====================================================================================================================
+# =========================================================
 Outputs:
   ApiUrl:
     Value: !Sub "https://${Api}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
