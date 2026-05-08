@@ -65,6 +65,7 @@ Resources:
 # =========================================================
   DoctorServiceFunction:
     Type: AWS::Lambda::Function
+    Name: !Sub "${Environment}-jsvm-${ServiceName}-lambda"
     Properties:
       Runtime: python3.11
       Handler: lambda_handler.lambda_handler
