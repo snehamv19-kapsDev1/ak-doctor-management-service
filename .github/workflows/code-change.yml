@@ -150,7 +150,7 @@ jobs:
           STACK_NAME="${ENV}-jsvm-${SERVICE_NAME}"
 
           aws cloudformation deploy \
-            --template-file cft/api-gateway-cft.yml \
+            --template-file cft/cft-doctor-service-infra.yaml \
             --stack-name $STACK_NAME \
             --capabilities CAPABILITY_NAMED_IAM \
             --no-fail-on-empty-changeset \
@@ -158,7 +158,9 @@ jobs:
               ServiceName=${SERVICE_NAME} \
               Environment=${ENV} \
               CodeBucket=${CODE_BUCKET} \
-              CodeKey=${CODE_KEY}
+              CodeKey=${CODE_KEY} \
+              DatabaseBucket=${DATABASE_BUCKET} \
+              DatabaseKey="doctors.json"
 
           echo "🚀 API Gateway stack deployed"
 
