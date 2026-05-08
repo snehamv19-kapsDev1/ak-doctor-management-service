@@ -29,17 +29,18 @@ def add_cors_headers(res):
 
     res["headers"].update(CORS_HEADERS)
     return res
+
+
 def lambda_handler(event, context):
-    logger.info(f"Event: {json.dumps(event)}")  # Log incoming event
+    logger.info(f"Event: {json.dumps(event)}")
 
     try:
-        response(200, {"message": "Hello from Lambda!"})
+        return add_cors_headers(response(200, {"message": "Hello from Lambda!"}))  # ✅ Added return
     except Exception as e:
         logger.error(f"Exception type: {type(e).__name__}")
         logger.error(f"Exception message: {str(e)}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         return add_cors_headers(response(500, {"error": str(e)}))
-
 
 
 
