@@ -330,8 +330,3 @@ Outputs:
 
   DoctorByIdEndpoint:
     Value: !Sub "https://${Api}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/doctors/{id}"
-
-  RBACAuthorizerArn:
-    Value: !GetAtt RBACAuthorizerFunction.Arn
-    Export:
-      Name: !Sub "${Environment}-RBACAuthorizerArn"
