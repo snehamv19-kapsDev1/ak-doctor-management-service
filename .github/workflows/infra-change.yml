@@ -116,6 +116,21 @@ jobs:
 
           echo "CODE_KEY=$CODE_KEY" >> $GITHUB_ENV
 
+
+      # ----------------------
+      # GET RBAC_AUTHORIZER_ARN
+      # ----------------------
+      - name: Get Database Bucket
+        run: |
+          RBAC_AUTHORIZER_ARN=$(aws ssm get-parameter \
+            --name "/${ENV}/jsvm/rbac-authorizer-arn" \
+            --query "Parameter.Value" \
+            --output text)
+
+          [ -z "$RBAC_AUTHORIZER_ARN" ] && echo "❌ Missing RBAC_AUTHORIZER_ARN " && exit 1
+
+          echo "RBAC_AUTHORIZER_ARN=$RBAC_AUTHORIZER_ARN" >> $GITHUB_ENV
+
       # ----------------------
       # PRINT PARAMETERS
       # ----------------------
@@ -127,6 +142,7 @@ jobs:
           echo "CodeKey=${CODE_KEY}"
           echo "DatabaseBucket=${DATABASE_BUCKET}"
           echo "DatabaseKey=${DATABASE_KEY}"
+          echo "RBACAuthorizerArn=${RBAC_AUTHORIZER_ARN}"
   
 
       # ----------------------
@@ -148,8 +164,7 @@ jobs:
               CodeKey=${CODE_KEY} \
               DatabaseBucket=${DATABASE_BUCKET} \
               DatabaseKey=${DATABASE_KEY} \
-              RBACAuthorizerArn=/dev/jsvm/rbac-authorizer-arn
-
+              RBACAuthorizerArn=${RBAC_AUTHORIZER_ARN}
           echo " Infra deployed"
 
       # ----------------------
