@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Doctor Service REST API (Lambda + API Gateway + S3 JSON DB)
+Description: Doctor Service REST APIs (Lambda + API Gateway + S3 JSON DB)
 
 Parameters:
   Environment:
