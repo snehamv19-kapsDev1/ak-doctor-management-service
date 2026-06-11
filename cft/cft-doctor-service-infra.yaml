@@ -22,8 +22,7 @@ Parameters:
     Type: String
 
   RBACAuthorizerArn:
-    Type: AWS::SSM::Parameter::Value<String>
-    Description: "SSM Parameter containing the RBAC Authorizer Lambda function ARN"
+    Type: String
 
 Resources:
 
